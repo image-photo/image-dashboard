@@ -184,7 +184,9 @@ export default function CustomerDetailsPage() {
   const id = params.id;
 
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [savedCustomer, setSavedCustomer] = useState<Customer | null>(null);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [showEditForm, setShowEditForm] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
@@ -218,10 +220,12 @@ export default function CustomerDetailsPage() {
           title: "Customer Load Failed",
           message: error.message,
         });
+        setIsLoading(false);
         return;
       }
 
       setCustomer(data);
+      setIsLoading(false);
     };
 
     const loadWorkOrders = async () => {
@@ -289,7 +293,9 @@ export default function CustomerDetailsPage() {
         phone: customer.phone,
         email: customer.email,
       })
-      .eq("id", customer.id);
+      .eq("id", customer.id)
+      .select("id")
+      .single();
 
     if (error) {
       setFeedback({
@@ -304,13 +310,61 @@ export default function CustomerDetailsPage() {
       message: "The customer record has been saved successfully.",
       tone: "success",
     });
+    setSavedCustomer(null);
     setShowEditForm(false);
   };
+
+  const startCustomerEdit = () => {
+    if (!customer) return;
+
+    setSavedCustomer({ ...customer });
+    setShowEditForm(true);
+  };
+
+  const cancelCustomerEdit = () => {
+    if (savedCustomer) {
+      setCustomer(savedCustomer);
+    }
+
+    setSavedCustomer(null);
+    setErrors({ firstName: "", lastName: "", phone: "" });
+    setShowEditForm(false);
+  };
+
+  if (isLoading) {
+    return (
+      <main className="app-page">
+        <p className="text-slate-600">Loading customer...</p>
+      </main>
+    );
+  }
 
   if (!customer) {
     return (
       <main className="app-page">
-        <p className="text-slate-600">Loading customer...</p>
+        <div className="app-container-narrow">
+          <Link href="/customers" className="text-blue-700 font-semibold">
+            ← Back to Customers
+          </Link>
+
+          <section className="app-panel-pad">
+            <h1 className="text-2xl font-bold text-slate-900">
+              Customer unavailable
+            </h1>
+            <p className="mt-2 text-slate-600">
+              This customer record could not be loaded.
+            </p>
+          </section>
+
+          {feedback && (
+            <FeedbackModal
+              title={feedback.title}
+              message={feedback.message}
+              tone={feedback.tone}
+              onClose={() => setFeedback(null)}
+            />
+          )}
+        </div>
       </main>
     );
   }
@@ -354,7 +408,7 @@ export default function CustomerDetailsPage() {
             </div>
 
             <button
-              onClick={() => setShowEditForm(!showEditForm)}
+              onClick={showEditForm ? cancelCustomerEdit : startCustomerEdit}
               className="app-button-primary"
             >
               {showEditForm ? "Close Edit Customer" : "Edit Customer"}

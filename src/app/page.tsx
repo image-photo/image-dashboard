@@ -11,6 +11,10 @@ This page is the main landing page after login.
 // Imports
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
+import {
+  getLocalDateString,
+  getLocalDateStringDaysFromNow,
+} from "@/lib/dates";
 import Link from "next/link";
 import FeedbackModal from "@/components/feedback-modal";
 import {
@@ -63,12 +67,8 @@ export default function HomePage() {
 
   useEffect(() => {
     const loadDashboard = async () => {
-      const today = new Date();
-      const sevenDaysFromNow = new Date();
-      sevenDaysFromNow.setDate(today.getDate() + 7);
-
-      const todayString = today.toISOString().split("T")[0];
-      const weekString = sevenDaysFromNow.toISOString().split("T")[0];
+      const todayString = getLocalDateString();
+      const weekString = getLocalDateStringDaysFromNow(7);
 
       const { data, error } = await supabase
         .from("work_orders")

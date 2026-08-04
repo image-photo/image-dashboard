@@ -1,11 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Bell, Briefcase, Search, UserCircle } from "lucide-react";
+import { Bell, Briefcase, Menu, Search, UserCircle } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import {
+  getLocalDateString,
+  getLocalDateStringDaysFromNow,
+} from "@/lib/dates";
 import LogoutButton from "@/components/logout-button";
+import { getSearchTerms, sanitizeSearchTerm } from "@/lib/search";
 
 type Profile = {
   id: string;
@@ -39,22 +44,13 @@ type JobResult = {
   id: number;
   due_date: string | null;
   project_type: string | null;
+  description: string | null;
   status: string | null;
   assigned_user_id: string | null;
   customers: {
     first_name: string | null;
     last_name: string | null;
   } | null;
-};
-
-const getTodayString = () => {
-  return new Date().toISOString().slice(0, 10);
-};
-
-const getWeekString = () => {
-  const date = new Date();
-  date.setDate(date.getDate() + 7);
-  return date.toISOString().slice(0, 10);
 };
 
 const isActiveJob = (job: JobResult) => {
@@ -65,18 +61,24 @@ const isActiveJob = (job: JobResult) => {
   );
 };
 
-export default function Topbar() {
+type TopbarProps = {
+  onMenuClick: () => void;
+};
+
+export default function Topbar({ onMenuClick }: TopbarProps) {
   const router = useRouter();
 
   const [profile, setProfile] = useState<Profile | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState("");
   const [myJobs, setMyJobs] = useState<JobResult[]>([]);
   const [notifications, setNotifications] = useState<JobResult[]>([]);
   const [openMenu, setOpenMenu] = useState<
     "search" | "jobs" | "notifications" | "profile" | null
   >(null);
+  const searchRequestId = useRef(0);
 
   useEffect(() => {
     const loadTopbarData = async () => {
@@ -113,8 +115,8 @@ export default function Topbar() {
         .limit(50);
 
       const jobs = ((jobsData || []) as unknown as JobResult[]).filter(isActiveJob);
-      const today = getTodayString();
-      const week = getWeekString();
+      const today = getLocalDateString();
+      const week = getLocalDateStringDaysFromNow(7);
 
       setMyJobs(jobs.filter((job) => job.assigned_user_id === user.id).slice(0, 6));
       setNotifications(
@@ -128,25 +130,48 @@ export default function Topbar() {
   }, []);
 
   useEffect(() => {
-    const search = searchTerm.trim();
-
-    if (search.length < 2) {
-      return;
-    }
-
-    const cleanedSearch = search.replace(/[,%()]/g, " ").trim();
+    const cleanedSearch = sanitizeSearchTerm(searchTerm);
+    const requestId = ++searchRequestId.current;
 
     if (cleanedSearch.length < 2) {
       return;
     }
 
-    const searchTerms = cleanedSearch
-      .split(/\s+/)
-      .filter((term) => term.length >= 2);
+    const searchTerms = getSearchTerms(cleanedSearch);
     const customerSearch = searchTerms[0] || cleanedSearch;
+    const workOrderMatch = cleanedSearch.match(/^wo[-\s]?0*(\d+)$/i);
+    const abortController = new AbortController();
+    let isActive = true;
 
     const timeout = window.setTimeout(async () => {
       setIsSearching(true);
+      setSearchError("");
+      setOpenMenu("search");
+
+      const jobsQuery = supabase
+        .from("work_orders")
+        .select(
+          `
+          id,
+          due_date,
+          project_type,
+          description,
+          status,
+          assigned_user_id,
+          customers (
+            first_name,
+            last_name
+          )
+        `
+        );
+
+      const jobsRequest = workOrderMatch
+        ? jobsQuery.eq("id", Number(workOrderMatch[1])).limit(5)
+        : jobsQuery
+            .or(
+              `project_type.ilike.%${customerSearch}%,status.ilike.%${customerSearch}%,description.ilike.%${customerSearch}%`
+            )
+            .limit(50);
 
       const [customersResponse, contactsResponse, jobsResponse] =
         await Promise.all([
@@ -156,34 +181,30 @@ export default function Topbar() {
             .or(
               `first_name.ilike.%${customerSearch}%,last_name.ilike.%${customerSearch}%,phone.ilike.%${cleanedSearch}%`
             )
-            .limit(20),
+            .limit(50)
+            .abortSignal(abortController.signal),
           supabase
             .from("contacts")
             .select("id, organization_name, contact_name, phone, email")
             .or(
-              `organization_name.ilike.%${cleanedSearch}%,contact_name.ilike.%${cleanedSearch}%,phone.ilike.%${cleanedSearch}%,email.ilike.%${cleanedSearch}%`
+              `organization_name.ilike.%${customerSearch}%,contact_name.ilike.%${customerSearch}%,phone.ilike.%${customerSearch}%,email.ilike.%${customerSearch}%`
             )
-            .limit(5),
-          supabase
-            .from("work_orders")
-            .select(
-              `
-              id,
-              due_date,
-              project_type,
-              status,
-              assigned_user_id,
-              customers (
-                first_name,
-                last_name
-              )
-            `
-            )
-            .or(
-              `project_type.ilike.%${cleanedSearch}%,status.ilike.%${cleanedSearch}%,description.ilike.%${cleanedSearch}%`
-            )
-            .limit(5),
+            .limit(50)
+            .abortSignal(abortController.signal),
+          jobsRequest.abortSignal(abortController.signal),
         ]);
+
+      if (!isActive || requestId !== searchRequestId.current) return;
+
+      const responseError =
+        customersResponse.error || contactsResponse.error || jobsResponse.error;
+
+      if (responseError) {
+        setSearchResults([]);
+        setIsSearching(false);
+        setSearchError("Search is temporarily unavailable. Please try again.");
+        return;
+      }
 
       const customerResults = ((customersResponse.data || []) as CustomerResult[])
         .filter((customer) => {
@@ -208,8 +229,24 @@ export default function Topbar() {
           group: "Customers" as const,
         }));
 
-      const contactResults = ((contactsResponse.data || []) as ContactResult[]).map(
-        (contact) => ({
+      const contactResults = ((contactsResponse.data || []) as ContactResult[])
+        .filter((contact) => {
+          const searchableContact = [
+            contact.organization_name,
+            contact.contact_name,
+            contact.phone,
+            contact.email,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+
+          return searchTerms.every((term) =>
+            searchableContact.includes(term.toLowerCase())
+          );
+        })
+        .slice(0, 5)
+        .map((contact) => ({
           href: `/contacts/${contact.id}`,
           label: contact.organization_name || "Unknown Organization",
           detail:
@@ -217,11 +254,29 @@ export default function Topbar() {
               .filter(Boolean)
               .join(" • ") || "Contact record",
           group: "Contacts" as const,
-        })
-      );
+        }));
 
-      const jobResults = ((jobsResponse.data || []) as unknown as JobResult[]).map(
-        (job) => ({
+      const jobResults = ((jobsResponse.data || []) as unknown as JobResult[])
+        .filter((job) => {
+          if (workOrderMatch) return true;
+
+          const searchableJob = [
+            job.customers?.first_name,
+            job.customers?.last_name,
+            job.project_type,
+            job.description,
+            job.status,
+          ]
+            .filter(Boolean)
+            .join(" ")
+            .toLowerCase();
+
+          return searchTerms.every((term) =>
+            searchableJob.includes(term.toLowerCase())
+          );
+        })
+        .slice(0, 5)
+        .map((job) => ({
           href: `/work-orders/${job.id}`,
           label: `WO-${String(job.id).padStart(6, "0")}`,
           detail:
@@ -235,15 +290,17 @@ export default function Topbar() {
               .filter(Boolean)
               .join(" • ") || "Job record",
           group: "Jobs" as const,
-        })
-      );
+        }));
 
       setSearchResults([...customerResults, ...contactResults, ...jobResults]);
       setIsSearching(false);
-      setOpenMenu("search");
     }, 250);
 
-    return () => window.clearTimeout(timeout);
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeout);
+      abortController.abort();
+    };
   }, [searchTerm]);
 
   const groupedResults = useMemo(() => {
@@ -263,6 +320,7 @@ export default function Topbar() {
   const openResult = (href: string) => {
     setSearchTerm("");
     setSearchResults([]);
+    setSearchError("");
     setOpenMenu(null);
     router.push(href);
   };
@@ -290,9 +348,18 @@ export default function Topbar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white border-b px-6 py-3">
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-2xl">
+    <header className="sticky top-0 z-30 border-b bg-white px-3 py-3 sm:px-6">
+      <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+        <button
+          type="button"
+          onClick={onMenuClick}
+          className="rounded-xl border p-2.5 text-slate-700 hover:bg-blue-50 lg:hidden"
+          aria-label="Open navigation"
+        >
+          <Menu size={20} />
+        </button>
+
+        <div className="relative order-3 w-full sm:order-none sm:flex-1 sm:max-w-2xl">
           <Search
             size={18}
             className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
@@ -303,25 +370,28 @@ export default function Topbar() {
             placeholder="Search customers, contacts, or jobs..."
             value={searchTerm}
             onFocus={() => {
-              if (searchResults.length) setOpenMenu("search");
+              if (searchResults.length || searchError) setOpenMenu("search");
             }}
             onChange={(event) => {
               const value = event.target.value;
 
               setSearchTerm(value);
 
-              if (value.trim().length < 2) {
+              if (sanitizeSearchTerm(value).length < 2) {
                 setSearchResults([]);
                 setIsSearching(false);
+                setSearchError("");
                 setOpenMenu(null);
               }
             }}
           />
 
-          {openMenu === "search" && searchTerm.trim().length >= 2 && (
+          {openMenu === "search" && sanitizeSearchTerm(searchTerm).length >= 2 && (
             <div className="absolute left-0 right-0 top-12 bg-white border rounded-xl shadow-lg overflow-hidden">
               {isSearching ? (
                 <p className="p-4 text-slate-500">Searching...</p>
+              ) : searchError ? (
+                <p className="p-4 text-red-700">{searchError}</p>
               ) : searchResults.length ? (
                 <div className="max-h-96 overflow-auto">
                   {Object.entries(groupedResults).map(([group, results]) =>
@@ -356,7 +426,7 @@ export default function Topbar() {
           )}
         </div>
 
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-2 sm:gap-3">
           <div className="relative">
             <button
               onClick={() =>
@@ -374,7 +444,7 @@ export default function Topbar() {
             </button>
 
             {openMenu === "notifications" && (
-              <div className="absolute right-0 top-12 w-80 bg-white border rounded-xl shadow-lg overflow-hidden">
+              <div className="absolute right-0 top-12 w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border bg-white shadow-lg">
                 <p className="bg-slate-50 px-4 py-2 text-xs font-bold uppercase text-slate-500">
                   Due Soon
                 </p>
@@ -398,7 +468,7 @@ export default function Topbar() {
             </button>
 
             {openMenu === "jobs" && (
-              <div className="absolute right-0 top-12 w-80 bg-white border rounded-xl shadow-lg overflow-hidden">
+              <div className="absolute right-0 top-12 w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border bg-white shadow-lg">
                 <p className="bg-slate-50 px-4 py-2 text-xs font-bold uppercase text-slate-500">
                   My Jobs
                 </p>
@@ -424,7 +494,7 @@ export default function Topbar() {
             </button>
 
             {openMenu === "profile" && (
-              <div className="absolute right-0 top-12 w-64 bg-white border rounded-xl shadow-lg overflow-hidden">
+              <div className="absolute right-0 top-12 w-[min(16rem,calc(100vw-1.5rem))] overflow-hidden rounded-xl border bg-white shadow-lg">
                 <div className="p-4 border-b">
                   <p className="font-semibold text-slate-900">
                     {profile?.full_name || "Signed in"}

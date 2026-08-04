@@ -294,6 +294,8 @@ export default function WorkOrderDetailsPage() {
   const id = params.id;
 
   const [workOrder, setWorkOrder] = useState<WorkOrder | null>(null);
+  const [savedWorkOrder, setSavedWorkOrder] = useState<WorkOrder | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [showEditForm, setShowEditForm] = useState(false);
   const [users, setUsers] = useState<Profile[]>([]);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -336,10 +338,12 @@ export default function WorkOrderDetailsPage() {
           title: "Work Order Load Failed",
           message: error.message,
         });
+        setIsLoading(false);
         return;
       }
 
       setWorkOrder(data as unknown as WorkOrder);
+      setIsLoading(false);
     };
 
     loadWorkOrder();
@@ -380,7 +384,9 @@ export default function WorkOrderDetailsPage() {
         notification_status: workOrder.notification_status || "Not Notified",
         pickup_delivery_status: workOrder.pickup_delivery_status || "Not Ready",
       })
-      .eq("id", workOrder.id);
+      .eq("id", workOrder.id)
+      .select("id")
+      .single();
 
     if (error) {
       setFeedback({
@@ -395,6 +401,26 @@ export default function WorkOrderDetailsPage() {
       message: "The work order has been saved successfully.",
       tone: "success",
     });
+    setSavedWorkOrder(null);
+    setShowEditForm(false);
+  };
+
+  const startJobEdit = () => {
+    if (!workOrder) return;
+
+    setSavedWorkOrder({
+      ...workOrder,
+      project_options: [...(workOrder.project_options || [])],
+    });
+    setShowEditForm(true);
+  };
+
+  const cancelJobEdit = () => {
+    if (savedWorkOrder) {
+      setWorkOrder(savedWorkOrder);
+    }
+
+    setSavedWorkOrder(null);
     setShowEditForm(false);
   };
 
@@ -412,10 +438,38 @@ export default function WorkOrderDetailsPage() {
     });
   };
 
-  if (!workOrder) {
+  if (isLoading) {
     return (
       <main className="app-page">
         <p className="text-slate-600">Loading job...</p>
+      </main>
+    );
+  }
+
+  if (!workOrder) {
+    return (
+      <main className="app-page">
+        <div className="app-container-narrow">
+          <Link href="/work-orders" className="text-blue-700 font-semibold">
+            ← Back to Jobs
+          </Link>
+
+          <section className="app-panel-pad">
+            <h1 className="text-2xl font-bold text-slate-900">Job unavailable</h1>
+            <p className="mt-2 text-slate-600">
+              This work order could not be loaded.
+            </p>
+          </section>
+
+          {feedback && (
+            <FeedbackModal
+              title={feedback.title}
+              message={feedback.message}
+              tone={feedback.tone}
+              onClose={() => setFeedback(null)}
+            />
+          )}
+        </div>
       </main>
     );
   }
@@ -457,7 +511,7 @@ export default function WorkOrderDetailsPage() {
               <h2 className="text-xl font-bold text-slate-900">Job Ticket</h2>
 
               <button
-                onClick={() => setShowEditForm(!showEditForm)}
+                onClick={showEditForm ? cancelJobEdit : startJobEdit}
                 className="app-button-primary"
               >
                 {showEditForm ? "Close Edit Job" : "Edit Job"}

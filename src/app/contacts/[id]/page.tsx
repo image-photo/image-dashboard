@@ -72,6 +72,7 @@ export default function ContactDetailsPage() {
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [contact, setContact] = useState<Contact | null>(null);
+  const [savedContact, setSavedContact] = useState<Contact | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showEditForm, setShowEditForm] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
@@ -151,7 +152,9 @@ export default function ContactDetailsPage() {
         next_follow_up_date: contact.next_follow_up_date || null,
         notes: contact.notes,
       })
-      .eq("id", contact.id);
+      .eq("id", contact.id)
+      .select("id")
+      .single();
 
     if (error) {
       setFeedback({
@@ -166,6 +169,24 @@ export default function ContactDetailsPage() {
       message: "The contact record has been saved successfully.",
       tone: "success",
     });
+    setSavedContact(null);
+    setShowEditForm(false);
+  };
+
+  const startContactEdit = () => {
+    if (!contact) return;
+
+    setSavedContact({ ...contact });
+    setShowEditForm(true);
+  };
+
+  const cancelContactEdit = () => {
+    if (savedContact) {
+      setContact(savedContact);
+    }
+
+    setSavedContact(null);
+    setErrors({ organizationName: "", contactName: "" });
     setShowEditForm(false);
   };
 
@@ -252,7 +273,7 @@ export default function ContactDetailsPage() {
             </div>
 
             <button
-              onClick={() => setShowEditForm(!showEditForm)}
+              onClick={showEditForm ? cancelContactEdit : startContactEdit}
               className="app-button-primary"
             >
               {showEditForm ? "Close Edit Contact" : "Edit Contact"}

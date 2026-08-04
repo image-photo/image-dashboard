@@ -154,7 +154,8 @@ export default function ContactsPage() {
 
         {/* Contacts Table */}
         <section className="app-panel overflow-hidden">
-          <table className="w-full text-left">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[880px] text-left">
             <thead className="bg-slate-900 text-white">
               <tr>
                 <th className="p-4 text-sm font-semibold">Organization</th>
@@ -216,6 +217,7 @@ export default function ContactsPage() {
               )}
             </tbody>
           </table>
+          </div>
         </section>
       </div>
 

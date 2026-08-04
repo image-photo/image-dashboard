@@ -116,7 +116,8 @@ export default function CustomersPage() {
 
         {/*Table*/}
         <section className="app-panel overflow-hidden">
-          <table className="w-full text-left">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[560px] text-left">
             <thead className="bg-slate-900 text-white">
               <tr>
                 <th className="p-4 text-sm font-semibold">Last Name</th>
@@ -157,6 +158,7 @@ export default function CustomersPage() {
               )}
             </tbody>
           </table>
+          </div>
         </section>
 
       </div>
