@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import FeedbackModal from "@/components/feedback-modal";
+import { getLocalDateString } from "@/lib/dates";
 
 // Types
 type Job = {
@@ -49,7 +50,7 @@ export default function CalendarPage() {
   const year = currentMonth.getFullYear();
   const month = currentMonth.getMonth();
 
-  const todayString = today.toISOString().split("T")[0];
+  const todayString = getLocalDateString();
 
   const monthName = currentMonth.toLocaleString("default", {
     month: "long",
@@ -180,8 +181,8 @@ export default function CalendarPage() {
 
         {/* Calendar Card */}
         <section className="app-panel overflow-hidden">
-          <div className="p-6 border-b flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-4 border-b p-4 sm:p-6 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={goToPreviousMonth}
                 className="border px-3 py-1 rounded-lg text-sm font-semibold hover:bg-blue-50"
@@ -189,7 +190,7 @@ export default function CalendarPage() {
                 Previous
               </button>
 
-              <h2 className="text-xl font-bold text-slate-900 min-w-48 text-center">
+              <h2 className="order-first w-full text-left text-xl font-bold text-slate-900 sm:order-none sm:min-w-48 sm:w-auto sm:text-center">
                 {monthName}
               </h2>
 
@@ -224,64 +225,66 @@ export default function CalendarPage() {
             </div>
           </div>
 
-          <div className="grid grid-cols-7 bg-slate-900 text-white text-sm font-semibold">
-            <div className="p-4">Sun</div>
-            <div className="p-4">Mon</div>
-            <div className="p-4">Tue</div>
-            <div className="p-4">Wed</div>
-            <div className="p-4">Thu</div>
-            <div className="p-4">Fri</div>
-            <div className="p-4">Sat</div>
-          </div>
-
-          <div className="grid grid-cols-7">
-            {calendarDays.map((day, index) => (
-              <div
-                key={index}
-                className="min-h-32 border-r border-b p-3 bg-white"
-              >
-                {day && (
-                  <>
-                    <p
-                      className={`text-sm font-semibold mb-2 w-7 h-7 flex items-center justify-center rounded-full ${
-                        day === today.getDate() &&
-                        month === today.getMonth() &&
-                        year === today.getFullYear()
-                          ? "bg-blue-700 text-white"
-                          : "text-slate-700"
-                      }`}
-                    >
-                      {day}
-                    </p>
-
-                    <div className="grid gap-2">
-                      {getJobsForDay(day).map((job) => (
-                        <Link
-                          key={job.id}
-                          href={`/work-orders/${job.id}`}
-                          className={`block rounded-lg text-xs p-2 transition-colors ${getCalendarJobClass(
-                            job.status,
-                            job.due_date
-                          )}`}
-                        >
-                          <p className="font-semibold">
-                            {job.project_type || "Job"}
-                          </p>
-
-                          <p>
-                            {job.customers
-                              ? `${job.customers.first_name} ${job.customers.last_name}`
-                              : "Unknown Customer"}
-                          </p>
-
-                        </Link>
-
-                      ))}
-                    </div>
-                  </>
-                )}
+          <div className="overflow-x-auto">
+            <div className="min-w-[840px]">
+              <div className="grid grid-cols-7 bg-slate-900 text-sm font-semibold text-white">
+                <div className="p-4">Sun</div>
+                <div className="p-4">Mon</div>
+                <div className="p-4">Tue</div>
+                <div className="p-4">Wed</div>
+                <div className="p-4">Thu</div>
+                <div className="p-4">Fri</div>
+                <div className="p-4">Sat</div>
               </div>
-            ))}
+
+              <div className="grid grid-cols-7">
+                {calendarDays.map((day, index) => (
+                  <div
+                    key={index}
+                    className="min-h-32 border-r border-b bg-white p-3"
+                  >
+                    {day && (
+                      <>
+                        <p
+                          className={`mb-2 flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold ${
+                            day === today.getDate() &&
+                            month === today.getMonth() &&
+                            year === today.getFullYear()
+                              ? "bg-blue-700 text-white"
+                              : "text-slate-700"
+                          }`}
+                        >
+                          {day}
+                        </p>
+
+                        <div className="grid gap-2">
+                          {getJobsForDay(day).map((job) => (
+                            <Link
+                              key={job.id}
+                              href={`/work-orders/${job.id}`}
+                              className={`block rounded-lg p-2 text-xs transition-colors ${getCalendarJobClass(
+                                job.status,
+                                job.due_date
+                              )}`}
+                            >
+                              <p className="font-semibold">
+                                {job.project_type || "Job"}
+                              </p>
+
+                              <p>
+                                {job.customers
+                                  ? `${job.customers.first_name} ${job.customers.last_name}`
+                                  : "Unknown Customer"}
+                              </p>
+                            </Link>
+                          ))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </section>
 

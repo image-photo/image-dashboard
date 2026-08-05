@@ -20,6 +20,65 @@ type Feedback = {
   tone?: "success" | "error";
 };
 
+type NewContactRecord = {
+  id: number;
+  organization_name: string | null;
+  contact_name: string | null;
+};
+
+const usStates = [
+  "AL",
+  "AK",
+  "AZ",
+  "AR",
+  "CA",
+  "CO",
+  "CT",
+  "DE",
+  "FL",
+  "GA",
+  "HI",
+  "ID",
+  "IL",
+  "IN",
+  "IA",
+  "KS",
+  "KY",
+  "LA",
+  "ME",
+  "MD",
+  "MA",
+  "MI",
+  "MN",
+  "MS",
+  "MO",
+  "MT",
+  "NE",
+  "NV",
+  "NH",
+  "NJ",
+  "NM",
+  "NY",
+  "NC",
+  "ND",
+  "OH",
+  "OK",
+  "OR",
+  "PA",
+  "RI",
+  "SC",
+  "SD",
+  "TN",
+  "TX",
+  "UT",
+  "VT",
+  "VA",
+  "WA",
+  "WV",
+  "WI",
+  "WY",
+];
+
 export default function NewContactPage() {
   const router = useRouter();
 
@@ -28,6 +87,10 @@ export default function NewContactPage() {
   const [contactRole, setContactRole] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
+  const [streetAddress, setStreetAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [state, setState] = useState("");
+  const [zipCode, setZipCode] = useState("");
   const [type, setType] = useState("");
   const [status, setStatus] = useState("Active");
   const [lastContactedDate, setLastContactedDate] = useState("");
@@ -46,6 +109,10 @@ export default function NewContactPage() {
     if (numbers.length <= 3) return numbers;
     if (numbers.length <= 6) return `(${numbers.slice(0, 3)}) ${numbers.slice(3)}`;
     return `(${numbers.slice(0, 3)}) ${numbers.slice(3, 6)}-${numbers.slice(6)}`;
+  };
+
+  const formatZipCode = (value: string) => {
+    return value.replace(/\D/g, "").slice(0, 5);
   };
 
   const saveContact = async () => {
@@ -81,6 +148,10 @@ export default function NewContactPage() {
           contact_role: contactRole.trim() || null,
           phone: phone.trim() || null,
           email: email.trim() || null,
+          street_address: streetAddress.trim() || null,
+          city: city.trim() || null,
+          state: state || null,
+          zip_code: zipCode || null,
           type: type || null,
           status: status || null,
           last_contacted_date: lastContactedDate || null,
@@ -88,7 +159,7 @@ export default function NewContactPage() {
           notes: notes.trim() || null,
         },
       ])
-      .select("id")
+      .select("id, organization_name, contact_name")
       .single();
 
     setIsSaving(false);
@@ -101,7 +172,16 @@ export default function NewContactPage() {
       return;
     }
 
-    router.push(`/contacts/${data.id}`);
+    const createdEvent = new CustomEvent<NewContactRecord>("contact-created", {
+      detail: data,
+      cancelable: true,
+    });
+
+    window.dispatchEvent(createdEvent);
+
+    if (!createdEvent.defaultPrevented) {
+      router.push(`/contacts/${data.id}`);
+    }
   };
 
   // ====================
@@ -208,6 +288,66 @@ export default function NewContactPage() {
                 className="app-input"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium mb-1 text-slate-700">
+                Street Address
+              </label>
+
+              <input
+                className="app-input"
+                autoComplete="street-address"
+                value={streetAddress}
+                onChange={(e) => setStreetAddress(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1 text-slate-700">
+                City
+              </label>
+
+              <input
+                className="app-input"
+                autoComplete="address-level2"
+                value={city}
+                onChange={(e) => setCity(e.target.value)}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1 text-slate-700">
+                State
+              </label>
+
+              <select
+                className="app-input"
+                autoComplete="address-level1"
+                value={state}
+                onChange={(e) => setState(e.target.value)}
+              >
+                <option value="">Select state</option>
+                {usStates.map((stateCode) => (
+                  <option key={stateCode} value={stateCode}>
+                    {stateCode}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1 text-slate-700">
+                Zip
+              </label>
+
+              <input
+                className="app-input"
+                inputMode="numeric"
+                autoComplete="postal-code"
+                value={zipCode}
+                onChange={(e) => setZipCode(formatZipCode(e.target.value))}
               />
             </div>
 

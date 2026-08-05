@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import Image from "next/image";
 import LogoutButton from "@/components/logout-button";
 import Link from "next/link";
 
@@ -13,6 +12,8 @@ import {
   Settings,
   Plus,
   Building2,
+  Camera,
+  X,
 } from "lucide-react";
 
 const links = [
@@ -27,16 +28,16 @@ const links = [
     icon: Users,
   },
   { 
-    href: "/work-orders", 
-    label: "Jobs",
-    icon: Briefcase,
-  },
-  { 
     href: "/contacts", 
     label: "Contacts",
     icon: Building2,
   },
-  { 
+  {
+    href: "/work-orders",
+    label: "Jobs",
+    icon: Briefcase,
+  },
+  {
     href: "/calendar", 
     label: "Calendar",
     icon: CalendarDays,
@@ -48,75 +49,126 @@ const links = [
   },
 ];
 
-export default function Sidebar() {
+type SidebarProps = {
+  isMobileOpen: boolean;
+  onMobileClose: () => void;
+};
+
+export default function Sidebar({
+  isMobileOpen,
+  onMobileClose,
+}: SidebarProps) {
   const pathname = usePathname();
 
-  return (
-    <aside className="w-64 bg-white border-r p-6">
-      <div className="flex items-center gap-3 mb-8">
-        <Image
-          src="/icon_logo.png"
-          alt="Studio Logo"
-          width={40}
-          height={40}
-          className="rounded-lg"
-        />
+  const sidebarContent = (showCloseButton: boolean) => (
+    <div className="flex h-full flex-col p-6">
+      <div className="mb-8 flex items-center gap-3">
+        <Link
+          href="/"
+          onClick={showCloseButton ? onMobileClose : undefined}
+          className="flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+          aria-label="Image Studio dashboard"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-sm">
+            <Camera size={22} strokeWidth={2.25} aria-hidden="true" />
+          </span>
 
-        <div>
-          <h1 className="text-xl font-bold text-slate-900">
-            Studio
-          </h1>
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-slate-900">
+              Image Studio
+            </h1>
 
-          <p className="text-xs text-slate-500">
-            Workflow System
-          </p>
-        </div>
+            <p className="text-xs text-slate-500">
+              Workflow System
+            </p>
+          </div>
+        </Link>
+
+        {showCloseButton && (
+          <button
+            type="button"
+            onClick={onMobileClose}
+            className="ml-auto rounded-xl border border-slate-200 p-2 text-slate-600 hover:bg-slate-50"
+            aria-label="Close navigation"
+          >
+            <X size={20} />
+          </button>
+        )}
       </div>
 
-      <nav className="grid gap-3">
+      <nav className="grid flex-1 content-start gap-3">
         {links.map((link) => {
           const isActive =
             link.href === "/"
               ? pathname === "/"
               : pathname.startsWith(link.href);
 
-      const Icon = link.icon;
+          const Icon = link.icon;
 
-      return (
-        <Link
-          key={link.href}
-          href={link.href}
-          className={`flex items-center gap-3 font-semibold px-3 py-2 rounded-xl transition-colors ${
-            isActive
-              ? "bg-blue-100 text-blue-700"
-              : "text-slate-700 hover:bg-blue-50 hover:text-blue-700"
-          }`}
-        >
-          <Icon size={18} />
-          {link.label}
-        </Link>
-      );
+          return (
+            <Link
+              key={link.href}
+              href={link.href}
+              onClick={showCloseButton ? onMobileClose : undefined}
+              className={`flex items-center gap-3 rounded-xl px-3 py-2 font-semibold transition-colors ${
+                isActive
+                  ? "bg-blue-100 text-blue-700"
+                  : "text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+              }`}
+            >
+              <Icon size={18} />
+              {link.label}
+            </Link>
+          );
         })}
 
         <Link
           href="/new-work-order"
-          className={`px-3 py-2 rounded-xl font-semibold text-center transition-colors ${
+          onClick={showCloseButton ? onMobileClose : undefined}
+          className={`rounded-xl px-3 py-2 text-center font-semibold transition-colors ${
             pathname === "/new-work-order"
               ? "bg-blue-800 text-white"
               : "bg-blue-700 hover:bg-blue-800 text-white"
           }`}
         >
-        <div className="flex items-center justify-center gap-2">
-          <Plus size={18} />
-          New Work Order
-        </div>
+          <span className="flex items-center justify-center gap-2">
+            <Plus size={18} />
+            New Work Order
+          </span>
         </Link>
-        
-        <div className="mt-8 border-t pt-4">
-          <LogoutButton />
-        </div>
-
       </nav>
-    </aside>
+
+      <div className="mt-8 border-t pt-4">
+        <LogoutButton />
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <aside className="hidden min-h-screen w-64 shrink-0 border-r bg-white lg:block">
+        {sidebarContent(false)}
+      </aside>
+
+      {isMobileOpen && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-40 bg-slate-950/40 lg:hidden"
+            onClick={onMobileClose}
+            aria-label="Close navigation"
+          />
+
+          <aside
+            className="fixed inset-y-0 left-0 z-50 w-72 max-w-[86vw] border-r bg-white shadow-xl lg:hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Main navigation"
+          >
+            {sidebarContent(true)}
+          </aside>
+        </>
+      )}
+    </>
   );
 }

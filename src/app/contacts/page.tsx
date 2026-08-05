@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import FeedbackModal from "@/components/feedback-modal";
 import Link from "next/link";
+import TablePagination from "@/components/table-pagination";
 
 // Types
 type Contact = {
@@ -21,6 +22,10 @@ type Contact = {
   contact_role: string | null;
   phone: string | null;
   email: string | null;
+  street_address: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
   type: string | null;
   status: string | null;
   last_contacted_date: string | null;
@@ -69,6 +74,8 @@ const formatDate = (dateString: string | null) => {
 export default function ContactsPage() {
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
   const router = useRouter();
@@ -78,7 +85,7 @@ export default function ContactsPage() {
       const { data, error } = await supabase
         .from("contacts")
         .select(
-          "id, organization_name, contact_name, contact_role, phone, email, type, status, last_contacted_date, next_follow_up_date, notes"
+          "id, organization_name, contact_name, contact_role, phone, email, street_address, city, state, zip_code, type, status, last_contacted_date, next_follow_up_date, notes"
         )
         .order("organization_name", { ascending: true });
 
@@ -107,6 +114,10 @@ export default function ContactsPage() {
       contact.contact_role,
       contact.phone,
       contact.email,
+      contact.street_address,
+      contact.city,
+      contact.state,
+      contact.zip_code,
       contact.type,
       contact.status,
       contact.last_contacted_date,
@@ -114,6 +125,11 @@ export default function ContactsPage() {
       contact.notes,
     ].some((value) => value?.toLowerCase().includes(search));
   });
+
+  const paginatedContacts = filteredContacts.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
   // ====================
   // Page Layout
@@ -149,12 +165,16 @@ export default function ContactsPage() {
           className="app-input"
           placeholder="Search organizations, contacts, email, phone, or notes..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setCurrentPage(1);
+          }}
         />
 
         {/* Contacts Table */}
         <section className="app-panel overflow-hidden">
-          <table className="w-full text-left">
+          <div className="overflow-x-auto">
+          <table className="w-full min-w-[880px] text-left">
             <thead className="bg-slate-900 text-white">
               <tr>
                 <th className="p-4 text-sm font-semibold">Organization</th>
@@ -167,7 +187,7 @@ export default function ContactsPage() {
             </thead>
 
             <tbody>
-              {filteredContacts.map((contact) => (
+              {paginatedContacts.map((contact) => (
                 <tr
                   key={contact.id}
                   onClick={() => router.push(`/contacts/${contact.id}`)}
@@ -216,6 +236,19 @@ export default function ContactsPage() {
               )}
             </tbody>
           </table>
+          </div>
+
+          <TablePagination
+            currentPage={currentPage}
+            itemLabel="contacts"
+            pageSize={pageSize}
+            totalItems={filteredContacts.length}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newPageSize) => {
+              setPageSize(newPageSize);
+              setCurrentPage(1);
+            }}
+          />
         </section>
       </div>
 

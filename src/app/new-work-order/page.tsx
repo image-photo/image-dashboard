@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import FeedbackModal from "@/components/feedback-modal";
+import { getSearchTerms, sanitizeSearchTerm } from "@/lib/search";
 
 // Types
 type Customer = {
@@ -36,6 +37,18 @@ type Feedback = {
   title: string;
   message: string;
   tone?: "success" | "error";
+};
+
+type NewWorkOrderRecord = {
+  id: number;
+  due_date: string | null;
+  project_type: string | null;
+  status: string | null;
+  assigned_user_id: string | null;
+  customers: {
+    first_name: string | null;
+    last_name: string | null;
+  } | null;
 };
 
 const usStates = [
@@ -95,11 +108,13 @@ export default function NewWorkOrderPage() {
   // States
   const [searchTerm, setSearchTerm] = useState("");
   const [searchResults, setSearchResults] = useState<Customer[]>([]);
+  const [isSearchingCustomers, setIsSearchingCustomers] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showSelectedCustomerEdit, setShowSelectedCustomerEdit] = useState(false);
   const [showNewCustomerForm, setShowNewCustomerForm] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -122,6 +137,11 @@ export default function NewWorkOrderPage() {
     firstName: "",
     lastName: "",
     phone: "",
+  });
+  const [projectErrors, setProjectErrors] = useState({
+    dueDate: "",
+    projectType: "",
+    email: "",
   });
 
   const [users, setUsers] = useState<Profile[]>([]);
@@ -240,6 +260,10 @@ export default function NewWorkOrderPage() {
     return value.replace(/\D/g, "").slice(0, 5);
   };
 
+  const isValidEmail = (value: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  };
+
   const getProjectOptionValue = (category: string, option: string) => {
     return `${category}: ${option}`;
   };
@@ -255,12 +279,18 @@ export default function NewWorkOrderPage() {
   };
 
   const searchCustomers = async () => {
-    const search = searchTerm.trim();
+    if (isSearchingCustomers) return;
+
+    const search = sanitizeSearchTerm(searchTerm);
 
     if (search.length === 0) {
       setSearchResults([]);
       return;
     }
+
+    const searchTerms = getSearchTerms(search);
+    const primarySearch = searchTerms[0] || search;
+    setIsSearchingCustomers(true);
 
     const { data, error } = await supabase
       .from("customers")
@@ -268,9 +298,11 @@ export default function NewWorkOrderPage() {
         "id, first_name, last_name, street_address, city, state, zip_code, phone, email"
       )
       .or(
-        `first_name.ilike.%${search}%,last_name.ilike.%${search}%,phone.ilike.%${search}%`
+        `first_name.ilike.%${primarySearch}%,last_name.ilike.%${primarySearch}%,phone.ilike.%${primarySearch}%`
       )
-      .limit(10);
+      .limit(50);
+
+    setIsSearchingCustomers(false);
 
     if (error) {
       setFeedback({
@@ -280,7 +312,22 @@ export default function NewWorkOrderPage() {
       return;
     }
 
-    setSearchResults(data || []);
+    const matchingCustomers = (data || []).filter((customer) => {
+      const searchableCustomer = [
+        customer.first_name,
+        customer.last_name,
+        customer.phone,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return searchTerms.every((term) =>
+        searchableCustomer.includes(term.toLowerCase())
+      );
+    });
+
+    setSearchResults(matchingCustomers.slice(0, 10));
   };
 
   const startEditingSelectedCustomer = () => {
@@ -330,6 +377,8 @@ export default function NewWorkOrderPage() {
   };
 
   const submitWorkOrder = async () => {
+    if (isSaving) return;
+
     let customerId = selectedCustomer?.id;
     let newlyCreatedCustomer: Customer | null = null;
 
@@ -337,6 +386,14 @@ export default function NewWorkOrderPage() {
       firstName: "",
       lastName: "",
       phone: "",
+    };
+    const newProjectErrors = {
+      dueDate: dueDate ? "" : "Due date is required",
+      projectType: projectType ? "" : "Project type is required",
+      email:
+        !selectedCustomer && email.trim() && !isValidEmail(email.trim())
+          ? "Enter a valid email address"
+          : "",
     };
 
     if (!selectedCustomer) {
@@ -354,30 +411,41 @@ export default function NewWorkOrderPage() {
     }
 
     setErrors(newErrors);
+    setProjectErrors(newProjectErrors);
 
-    if (newErrors.firstName || newErrors.lastName || newErrors.phone) {
+    if (
+      newErrors.firstName ||
+      newErrors.lastName ||
+      newErrors.phone ||
+      newProjectErrors.dueDate ||
+      newProjectErrors.projectType ||
+      newProjectErrors.email
+    ) {
       return;
     }
+
+    setIsSaving(true);
 
     if (!customerId) {
       const { data: customerData, error: customerError } = await supabase
         .from("customers")
         .insert([
           {
-            first_name: firstName,
-            last_name: lastName,
-            street_address: streetAddress,
-            city,
-            state,
-            zip_code: zipCode,
-            phone,
-            email,
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+            street_address: streetAddress.trim() || null,
+            city: city.trim() || null,
+            state: state || null,
+            zip_code: zipCode || null,
+            phone: phone.trim(),
+            email: email.trim() || null,
           },
         ])
         .select()
         .single();
 
       if (customerError) {
+        setIsSaving(false);
         setFeedback({
           title: "Customer Save Failed",
           message: customerError.message,
@@ -389,35 +457,79 @@ export default function NewWorkOrderPage() {
       newlyCreatedCustomer = customerData as Customer;
     }
 
-    const { error: workOrderError } = await supabase.from("work_orders").insert([
-      {
-        customer_id: customerId,
-        due_date: dueDate,
-        project_type: projectType,
-        assigned_user_id: assignedUserId || null,
-        project_options: projectOptions,
-        description,
-        status: "Open",
-        payment_status: paymentStatus,
-        notification_status: notificationStatus,
-        pickup_delivery_status: pickupDeliveryStatus,
-      },
-    ]);
+    const { data: workOrderData, error: workOrderError } = await supabase
+      .from("work_orders")
+      .insert([
+        {
+          customer_id: customerId,
+          due_date: dueDate,
+          project_type: projectType,
+          assigned_user_id: assignedUserId || null,
+          project_options: projectOptions,
+          description,
+          status: "Open",
+          payment_status: paymentStatus,
+          notification_status: notificationStatus,
+          pickup_delivery_status: pickupDeliveryStatus,
+        },
+      ])
+      .select(
+        `
+        id,
+        due_date,
+        project_type,
+        status,
+        assigned_user_id,
+        customers (
+          first_name,
+          last_name
+        )
+      `
+      )
+      .single();
 
     if (workOrderError) {
+      let rollbackMessage = "";
+
       if (newlyCreatedCustomer) {
-        setSelectedCustomer(newlyCreatedCustomer);
-        setShowNewCustomerForm(false);
+        const { error: rollbackError } = await supabase
+          .from("customers")
+          .delete()
+          .eq("id", newlyCreatedCustomer.id)
+          .select("id")
+          .single();
+
+        if (rollbackError) {
+          setSelectedCustomer(newlyCreatedCustomer);
+          setShowNewCustomerForm(false);
+          rollbackMessage =
+            " The customer record was saved, so you can retry the work order without creating the customer again.";
+        }
       }
 
+      setIsSaving(false);
       setFeedback({
         title: "Work Order Save Failed",
-        message: workOrderError.message,
+        message: `${workOrderError.message}${rollbackMessage}`,
       });
       return;
     }
 
-    setShowSuccessModal(true);
+    setIsSaving(false);
+
+    const createdEvent = new CustomEvent<NewWorkOrderRecord>(
+      "work-order-created",
+      {
+        detail: workOrderData as unknown as NewWorkOrderRecord,
+        cancelable: true,
+      }
+    );
+
+    window.dispatchEvent(createdEvent);
+
+    if (!createdEvent.defaultPrevented) {
+      setShowSuccessModal(true);
+    }
 
     setSearchTerm("");
     setSearchResults([]);
@@ -448,6 +560,7 @@ export default function NewWorkOrderPage() {
       lastName: "",
       phone: "",
     });
+    setProjectErrors({ dueDate: "", projectType: "", email: "" });
   };
 
   // ====================
@@ -494,9 +607,10 @@ export default function NewWorkOrderPage() {
 
               <button
                 type="submit"
-                className="bg-slate-900 text-white px-4 py-2 rounded"
+                disabled={isSearchingCustomers}
+                className="rounded bg-slate-900 px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                Search
+                {isSearchingCustomers ? "Searching..." : "Search"}
               </button>
             </form>
 
@@ -799,8 +913,17 @@ export default function NewWorkOrderPage() {
                   className="border p-2 rounded text-slate-900"
                   placeholder="Email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value);
+                    setProjectErrors({ ...projectErrors, email: "" });
+                  }}
                 />
+
+                {projectErrors.email && (
+                  <p className="text-red-500 text-sm md:col-span-2">
+                    {projectErrors.email}
+                  </p>
+                )}
               </div>
             </section>
           )}
@@ -821,8 +944,17 @@ export default function NewWorkOrderPage() {
                   className="border p-2 rounded text-slate-900 w-full"
                   type="date"
                   value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
+                  onChange={(e) => {
+                    setDueDate(e.target.value);
+                    setProjectErrors({ ...projectErrors, dueDate: "" });
+                  }}
                 />
+
+                {projectErrors.dueDate && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {projectErrors.dueDate}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -836,6 +968,7 @@ export default function NewWorkOrderPage() {
                   onChange={(e) => {
                     setProjectType(e.target.value);
                     setProjectOptions([]);
+                    setProjectErrors({ ...projectErrors, projectType: "" });
                   }}
                 >
                   <option value="">Select project type</option>
@@ -843,6 +976,12 @@ export default function NewWorkOrderPage() {
                   <option value="Scan / Reproduction">Scan / Reproduction</option>
                   <option value="Studio Session">Studio Session</option>
                 </select>
+
+                {projectErrors.projectType && (
+                  <p className="text-red-500 text-sm mt-1">
+                    {projectErrors.projectType}
+                  </p>
+                )}
               </div>
 
               <div>
@@ -982,9 +1121,10 @@ export default function NewWorkOrderPage() {
           {/*Form Button*/}
           <button
             onClick={submitWorkOrder}
-            className="app-button-primary"
+            disabled={isSaving}
+            className="app-button-primary disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Create Work Order
+            {isSaving ? "Creating Work Order..." : "Create Work Order"}
           </button>
 
         </div>
