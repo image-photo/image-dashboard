@@ -291,7 +291,7 @@ const formatTimestampDateParts = (timestamp: string | null) => {
 
 export default function WorkOrderDetailsPage() {
   const params = useParams();
-  const id = params.id;
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
 
   const [workOrder, setWorkOrder] = useState<WorkOrder | null>(null);
   const [savedWorkOrder, setSavedWorkOrder] = useState<WorkOrder | null>(null);
@@ -302,6 +302,17 @@ export default function WorkOrderDetailsPage() {
 
   useEffect(() => {
     const loadWorkOrder = async () => {
+      const workOrderId = Number(id);
+
+      if (!Number.isInteger(workOrderId)) {
+        setFeedback({
+          title: "Work Order Load Failed",
+          message: "The work order ID is invalid.",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("work_orders")
         .select(`
@@ -330,7 +341,7 @@ export default function WorkOrderDetailsPage() {
             zip_code
           )
         `)
-        .eq("id", id)
+        .eq("id", workOrderId)
         .single();
 
       if (error) {
@@ -371,15 +382,27 @@ export default function WorkOrderDetailsPage() {
   const saveJob = async () => {
     if (!workOrder) return;
 
+    const dueDate = workOrder.due_date;
+    const projectType = workOrder.project_type;
+    const status = workOrder.status || "Open";
+
+    if (!dueDate || !projectType) {
+      setFeedback({
+        title: "Job Update Failed",
+        message: "Due date and project type are required.",
+      });
+      return;
+    }
+
     const { error } = await supabase
       .from("work_orders")
       .update({
-        due_date: workOrder.due_date,
-        project_type: workOrder.project_type,
+        due_date: dueDate,
+        project_type: projectType,
         project_options: workOrder.project_options || [],
         assigned_user_id: workOrder.assigned_user_id || null,
-        description: workOrder.description,
-        status: workOrder.status,
+        description: workOrder.description || "",
+        status,
         payment_status: workOrder.payment_status || "Not Checked",
         notification_status: workOrder.notification_status || "Not Notified",
         pickup_delivery_status: workOrder.pickup_delivery_status || "Not Ready",

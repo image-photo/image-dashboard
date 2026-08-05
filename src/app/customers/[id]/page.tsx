@@ -183,7 +183,7 @@ const getPickupDeliveryStatusClass = (status: string | null) => {
 
 export default function CustomerDetailsPage() {
   const params = useParams();
-  const id = params.id;
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const router = useRouter();
 
   const [customer, setCustomer] = useState<Customer | null>(null);
@@ -216,10 +216,21 @@ export default function CustomerDetailsPage() {
 
   useEffect(() => {
     const loadCustomer = async () => {
+      const customerId = Number(id);
+
+      if (!Number.isInteger(customerId)) {
+        setFeedback({
+          title: "Customer Load Failed",
+          message: "The customer ID is invalid.",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("customers")
         .select("*")
-        .eq("id", id)
+        .eq("id", customerId)
         .single();
 
       if (error) {
@@ -236,12 +247,16 @@ export default function CustomerDetailsPage() {
     };
 
     const loadWorkOrders = async () => {
+      const customerId = Number(id);
+
+      if (!Number.isInteger(customerId)) return;
+
       const { data, error } = await supabase
         .from("work_orders")
         .select(
           "id, due_date, project_type, status, payment_status, notification_status, pickup_delivery_status, description"
         )
-        .eq("customer_id", id)
+        .eq("customer_id", customerId)
         .order("id", { ascending: false });
 
       if (error) {
@@ -265,21 +280,25 @@ export default function CustomerDetailsPage() {
   const saveCustomer = async () => {
     if (!customer) return;
 
+    const firstName = customer.first_name?.trim() || "";
+    const lastName = customer.last_name?.trim() || "";
+    const phone = customer.phone?.trim() || "";
+
     const newErrors = {
       firstName: "",
       lastName: "",
       phone: "",
     };
 
-    if (!customer.first_name?.trim()) {
+    if (!firstName) {
       newErrors.firstName = "First name is required";
     }
 
-    if (!customer.last_name?.trim()) {
+    if (!lastName) {
       newErrors.lastName = "Last name is required";
     }
 
-    if (!customer.phone?.trim()) {
+    if (!phone) {
       newErrors.phone = "Phone number is required";
     }
 
@@ -292,13 +311,13 @@ export default function CustomerDetailsPage() {
     const { error } = await supabase
       .from("customers")
       .update({
-        first_name: customer.first_name,
-        last_name: customer.last_name,
+        first_name: firstName,
+        last_name: lastName,
         street_address: customer.street_address,
         city: customer.city,
         state: customer.state,
         zip_code: customer.zip_code,
-        phone: customer.phone,
+        phone,
         email: customer.email,
       })
       .eq("id", customer.id)

@@ -379,8 +379,7 @@ export default function NewWorkOrderPage() {
   const submitWorkOrder = async () => {
     if (isSaving) return;
 
-    let customerId = selectedCustomer?.id;
-    let newlyCreatedCustomer: Customer | null = null;
+    const customerId = selectedCustomer?.id;
 
     const newErrors = {
       firstName: "",
@@ -426,93 +425,92 @@ export default function NewWorkOrderPage() {
 
     setIsSaving(true);
 
+    let workOrderData: NewWorkOrderRecord;
+
     if (!customerId) {
-      const { data: customerData, error: customerError } = await supabase
-        .from("customers")
-        .insert([
-          {
-            first_name: firstName.trim(),
-            last_name: lastName.trim(),
-            street_address: streetAddress.trim() || null,
-            city: city.trim() || null,
-            state: state || null,
-            zip_code: zipCode || null,
-            phone: phone.trim(),
-            email: email.trim() || null,
-          },
-        ])
-        .select()
+      const { data, error } = await supabase
+        .rpc("create_customer_and_work_order", {
+          p_first_name: firstName.trim(),
+          p_last_name: lastName.trim(),
+          p_phone: phone.trim(),
+          p_due_date: dueDate,
+          p_project_type: projectType,
+          p_email: email.trim() || undefined,
+          p_street_address: streetAddress.trim() || undefined,
+          p_city: city.trim() || undefined,
+          p_state: state || undefined,
+          p_zip_code: zipCode || undefined,
+          p_assigned_user_id: assignedUserId || undefined,
+          p_project_options: projectOptions,
+          p_description: description,
+          p_payment_status: paymentStatus,
+          p_notification_status: notificationStatus,
+          p_pickup_delivery_status: pickupDeliveryStatus,
+        })
         .single();
 
-      if (customerError) {
+      if (error) {
         setIsSaving(false);
         setFeedback({
-          title: "Customer Save Failed",
-          message: customerError.message,
+          title: "Work Order Save Failed",
+          message: error.message,
         });
         return;
       }
 
-      customerId = customerData.id;
-      newlyCreatedCustomer = customerData as Customer;
-    }
-
-    const { data: workOrderData, error: workOrderError } = await supabase
-      .from("work_orders")
-      .insert([
-        {
-          customer_id: customerId,
-          due_date: dueDate,
-          project_type: projectType,
-          assigned_user_id: assignedUserId || null,
-          project_options: projectOptions,
-          description,
-          status: "Open",
-          payment_status: paymentStatus,
-          notification_status: notificationStatus,
-          pickup_delivery_status: pickupDeliveryStatus,
+      workOrderData = {
+        id: data.work_order_id,
+        due_date: dueDate,
+        project_type: projectType,
+        status: "Open",
+        assigned_user_id: assignedUserId || null,
+        customers: {
+          first_name: firstName.trim(),
+          last_name: lastName.trim(),
         },
-      ])
-      .select(
+      };
+    } else {
+      const { data, error } = await supabase
+        .from("work_orders")
+        .insert([
+          {
+            customer_id: customerId,
+            due_date: dueDate,
+            project_type: projectType,
+            assigned_user_id: assignedUserId || null,
+            project_options: projectOptions,
+            description,
+            status: "Open",
+            payment_status: paymentStatus,
+            notification_status: notificationStatus,
+            pickup_delivery_status: pickupDeliveryStatus,
+          },
+        ])
+        .select(
+          `
+          id,
+          due_date,
+          project_type,
+          status,
+          assigned_user_id,
+          customers (
+            first_name,
+            last_name
+          )
         `
-        id,
-        due_date,
-        project_type,
-        status,
-        assigned_user_id,
-        customers (
-          first_name,
-          last_name
         )
-      `
-      )
-      .single();
+        .single();
 
-    if (workOrderError) {
-      let rollbackMessage = "";
-
-      if (newlyCreatedCustomer) {
-        const { error: rollbackError } = await supabase
-          .from("customers")
-          .delete()
-          .eq("id", newlyCreatedCustomer.id)
-          .select("id")
-          .single();
-
-        if (rollbackError) {
-          setSelectedCustomer(newlyCreatedCustomer);
-          setShowNewCustomerForm(false);
-          rollbackMessage =
-            " The customer record was saved, so you can retry the work order without creating the customer again.";
-        }
+      if (error) {
+        setIsSaving(false);
+        setFeedback({
+          title: "Work Order Save Failed",
+          message: error.message,
+        });
+        return;
       }
 
-      setIsSaving(false);
-      setFeedback({
-        title: "Work Order Save Failed",
-        message: `${workOrderError.message}${rollbackMessage}`,
-      });
-      return;
+      workOrderData = data as unknown as NewWorkOrderRecord;
     }
 
     setIsSaving(false);
@@ -520,7 +518,7 @@ export default function NewWorkOrderPage() {
     const createdEvent = new CustomEvent<NewWorkOrderRecord>(
       "work-order-created",
       {
-        detail: workOrderData as unknown as NewWorkOrderRecord,
+        detail: workOrderData,
         cancelable: true,
       }
     );

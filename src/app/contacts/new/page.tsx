@@ -153,7 +153,7 @@ export default function NewContactPage() {
           state: state || null,
           zip_code: zipCode || null,
           type: type || null,
-          status: status || null,
+          status: status || "Active",
           last_contacted_date: lastContactedDate || null,
           next_follow_up_date: nextFollowUpDate || null,
           notes: notes.trim() || null,

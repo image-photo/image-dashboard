@@ -160,10 +160,21 @@ export default function ContactDetailsPage() {
     const loadContact = async () => {
       setIsLoading(true);
 
+      const contactId = Number(id);
+
+      if (!Number.isInteger(contactId)) {
+        setFeedback({
+          title: "Contact Load Failed",
+          message: "The contact ID is invalid.",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from("contacts")
         .select("*")
-        .eq("id", id)
+        .eq("id", contactId)
         .single();
 
       if (error) {
@@ -187,16 +198,19 @@ export default function ContactDetailsPage() {
   const saveContact = async () => {
     if (!contact) return;
 
+    const organizationName = contact.organization_name?.trim() || "";
+    const contactName = contact.contact_name?.trim() || "";
+
     const newErrors = {
       organizationName: "",
       contactName: "",
     };
 
-    if (!contact.organization_name?.trim()) {
+    if (!organizationName) {
       newErrors.organizationName = "Organization is required";
     }
 
-    if (!contact.contact_name?.trim()) {
+    if (!contactName) {
       newErrors.contactName = "Contact name is required";
     }
 
@@ -209,8 +223,8 @@ export default function ContactDetailsPage() {
     const { error } = await supabase
       .from("contacts")
       .update({
-        organization_name: contact.organization_name,
-        contact_name: contact.contact_name,
+        organization_name: organizationName,
+        contact_name: contactName,
         contact_role: contact.contact_role,
         phone: contact.phone,
         email: contact.email,
@@ -219,7 +233,7 @@ export default function ContactDetailsPage() {
         state: contact.state,
         zip_code: contact.zip_code,
         type: contact.type,
-        status: contact.status,
+        status: contact.status || "Active",
         last_contacted_date: contact.last_contacted_date || null,
         next_follow_up_date: contact.next_follow_up_date || null,
       })

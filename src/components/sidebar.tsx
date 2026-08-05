@@ -1,8 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import LogoutButton from "@/components/logout-button";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 import {
   LayoutDashboard,
@@ -13,6 +15,7 @@ import {
   Plus,
   Building2,
   Camera,
+  UserCog,
   X,
 } from "lucide-react";
 
@@ -59,6 +62,27 @@ export default function Sidebar({
   onMobileClose,
 }: SidebarProps) {
   const pathname = usePathname();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const loadRole = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) return;
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role, active")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      setIsAdmin(profile?.role === "admin" && profile.active === true);
+    };
+
+    loadRole();
+  }, []);
 
   const sidebarContent = (showCloseButton: boolean) => (
     <div className="flex h-full flex-col p-6">
@@ -121,6 +145,21 @@ export default function Sidebar({
             </Link>
           );
         })}
+
+        {isAdmin && (
+          <Link
+            href="/users"
+            onClick={showCloseButton ? onMobileClose : undefined}
+            className={`flex items-center gap-3 rounded-xl px-3 py-2 font-semibold transition-colors ${
+              pathname.startsWith("/users")
+                ? "bg-blue-100 text-blue-700"
+                : "text-slate-700 hover:bg-blue-50 hover:text-blue-700"
+            }`}
+          >
+            <UserCog size={18} />
+            Team Access
+          </Link>
+        )}
 
         <Link
           href="/new-work-order"

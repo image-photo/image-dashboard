@@ -14,7 +14,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const isLoginPage = pathname === "/login";
+  const isAuthPage = pathname === "/login" || pathname === "/reset-password";
   const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false);
 
   useEffect(() => {
@@ -43,7 +43,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        {isLoginPage ? (
+        {isAuthPage ? (
           children
         ) : (
           <AuthGuard>

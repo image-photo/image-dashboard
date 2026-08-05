@@ -208,29 +208,14 @@ export default function SettingsPage() {
 
     setSavingSection("password");
 
-    const { error: verificationError } = await supabase.auth.signInWithPassword({
-      email: authEmail,
-      password: currentPassword,
-    });
-
-    if (verificationError) {
-      setSavingSection(null);
-      setFeedback({
-        title: "Current password is incorrect",
-        message: "Check your current password and try again.",
-        tone: "error",
-      });
-      return;
-    }
-
     const { error } = await supabase.auth.updateUser({
+      email: authEmail,
       password: newPassword,
       current_password: currentPassword,
     });
 
-    setSavingSection(null);
-
     if (error) {
+      setSavingSection(null);
       setFeedback({
         title: "Password not updated",
         message: error.message,
@@ -239,12 +224,29 @@ export default function SettingsPage() {
       return;
     }
 
+    const { error: sessionError } = await supabase.auth.signOut({
+      scope: "others",
+    });
+
+    setSavingSection(null);
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
+
+    if (sessionError) {
+      setFeedback({
+        title: "Password updated",
+        message:
+          "Your password was changed, but other signed-in devices could not be closed automatically. Sign out everywhere before continuing.",
+        tone: "error",
+      });
+      return;
+    }
+
     setFeedback({
       title: "Password updated",
-      message: "Your new password is ready to use the next time you sign in.",
+      message:
+        "Your new password is ready to use, and all other signed-in devices have been closed.",
       tone: "success",
     });
   };
