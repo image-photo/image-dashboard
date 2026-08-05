@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import Image from "next/image";
 import LogoutButton from "@/components/logout-button";
 import Link from "next/link";
 
@@ -13,6 +12,7 @@ import {
   Settings,
   Plus,
   Building2,
+  Camera,
   X,
 } from "lucide-react";
 
@@ -28,16 +28,16 @@ const links = [
     icon: Users,
   },
   { 
-    href: "/work-orders", 
-    label: "Jobs",
-    icon: Briefcase,
-  },
-  { 
     href: "/contacts", 
     label: "Contacts",
     icon: Building2,
   },
-  { 
+  {
+    href: "/work-orders",
+    label: "Jobs",
+    icon: Briefcase,
+  },
+  {
     href: "/calendar", 
     label: "Calendar",
     icon: CalendarDays,
@@ -63,23 +63,26 @@ export default function Sidebar({
   const sidebarContent = (showCloseButton: boolean) => (
     <div className="flex h-full flex-col p-6">
       <div className="mb-8 flex items-center gap-3">
-        <Image
-          src="/icon_logo.png"
-          alt="Studio Logo"
-          width={40}
-          height={40}
-          className="rounded-lg"
-        />
+        <Link
+          href="/"
+          onClick={showCloseButton ? onMobileClose : undefined}
+          className="flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 focus-visible:ring-offset-2"
+          aria-label="Image Studio dashboard"
+        >
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 text-white shadow-sm">
+            <Camera size={22} strokeWidth={2.25} aria-hidden="true" />
+          </span>
 
-        <div className="min-w-0">
-          <h1 className="text-xl font-bold text-slate-900">
-            Studio
-          </h1>
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold text-slate-900">
+              Image Studio
+            </h1>
 
-          <p className="text-xs text-slate-500">
-            Workflow System
-          </p>
-        </div>
+            <p className="text-xs text-slate-500">
+              Workflow System
+            </p>
+          </div>
+        </Link>
 
         {showCloseButton && (
           <button

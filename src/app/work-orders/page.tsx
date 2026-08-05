@@ -7,11 +7,16 @@ Work Orders Table
 */
 
 // Imports
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import FeedbackModal from "@/components/feedback-modal";
+import TablePagination from "@/components/table-pagination";
+import {
+  getLocalDateString,
+  getLocalDateStringDaysFromNow,
+} from "@/lib/dates";
 
 // Types
 type WorkOrder = {
@@ -39,14 +44,39 @@ type Feedback = {
   tone?: "success" | "error";
 };
 
-export default function WorkOrdersPage() {
+const statusFilters = [
+  "Active",
+  "All",
+  "Open",
+  "In Progress",
+  "Done",
+  "Canceled",
+  "Archived",
+] as const;
+
+type StatusFilter = (typeof statusFilters)[number];
+type DueDateFilter = "Any Due Date" | "Due Soon";
+
+const getStatusFilter = (value: string | null): StatusFilter => {
+  return statusFilters.includes(value as StatusFilter)
+    ? (value as StatusFilter)
+    : "Active";
+};
+
+function WorkOrdersContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const statusFilter = getStatusFilter(searchParams.get("status"));
+  const dueDateFilter: DueDateFilter =
+    searchParams.get("due") === "soon" ? "Due Soon" : "Any Due Date";
+
   // States
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
-  const [statusFilter, setStatusFilter] = useState("Active");
   const [searchTerm, setSearchTerm] = useState("");
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
-
-  const router = useRouter();
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
     const loadWorkOrders = async () => {
@@ -87,11 +117,22 @@ export default function WorkOrdersPage() {
   }, []);
 
 
+  const todayString = getLocalDateString();
+  const weekString = getLocalDateStringDaysFromNow(7);
+
   const filteredJobs = workOrders.filter((order) => {
     const statusMatch =
       statusFilter === "Active"
         ? order.status === "Open" || order.status === "In Progress"
         : statusFilter === "All" || order.status === statusFilter;
+
+    const dueDateMatch =
+      dueDateFilter === "Any Due Date" ||
+      Boolean(
+        order.due_date &&
+          order.due_date >= todayString &&
+          order.due_date <= weekString
+      );
 
     const search = searchTerm.toLowerCase().trim();
 
@@ -122,8 +163,13 @@ export default function WorkOrdersPage() {
       pickupDeliveryStatus.includes(search) ||
       options.includes(search);
 
-    return statusMatch && searchMatch;
+    return statusMatch && dueDateMatch && searchMatch;
   });
+
+  const paginatedJobs = filteredJobs.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
   const getStatusClass = (status: string | null) => {
     if (status === "Open") {
@@ -202,7 +248,23 @@ export default function WorkOrdersPage() {
     return "bg-slate-100 text-slate-700";
   };
 
-  const [showFilters, setShowFilters] = useState(false);
+  const updateFilters = (
+    nextStatus: StatusFilter,
+    nextDueDate: DueDateFilter
+  ) => {
+    const nextParams = new URLSearchParams(searchParams.toString());
+
+    nextParams.set("status", nextStatus);
+
+    if (nextDueDate === "Due Soon") {
+      nextParams.set("due", "soon");
+    } else {
+      nextParams.delete("due");
+    }
+
+    setCurrentPage(1);
+    router.replace(`/work-orders?${nextParams.toString()}`, { scroll: false });
+  };
 
   // ====================
   // PAGE LAYOUT
@@ -238,7 +300,10 @@ export default function WorkOrdersPage() {
               className="app-input flex-1"
               placeholder="Search jobs, customers, WO number..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setCurrentPage(1);
+              }}
             />
 
             <button
@@ -259,15 +324,33 @@ export default function WorkOrdersPage() {
                 <select
                   className="app-input"
                   value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
+                  onChange={(e) => {
+                    updateFilters(e.target.value as StatusFilter, dueDateFilter);
+                  }}
                 >
-                  <option>Active</option>
-                  <option>All</option>
-                  <option>Open</option>
-                  <option>In Progress</option>
-                  <option>Done</option>
-                  <option>Canceled</option>
-                  <option>Archived</option>
+                  {statusFilters.map((status) => (
+                    <option key={status}>{status}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">
+                  Due Date
+                </label>
+
+                <select
+                  className="app-input"
+                  value={dueDateFilter}
+                  onChange={(event) =>
+                    updateFilters(
+                      statusFilter,
+                      event.target.value as DueDateFilter
+                    )
+                  }
+                >
+                  <option>Any Due Date</option>
+                  <option>Due Soon</option>
                 </select>
               </div>
 
@@ -291,7 +374,7 @@ export default function WorkOrdersPage() {
             </thead>
 
             <tbody>
-              {filteredJobs.map((order) => (
+              {paginatedJobs.map((order) => (
                 <tr
                   key={order.id}
                   onClick={() => {
@@ -375,6 +458,18 @@ export default function WorkOrdersPage() {
             </tbody>
           </table>
           </div>
+
+          <TablePagination
+            currentPage={currentPage}
+            itemLabel="jobs"
+            pageSize={pageSize}
+            totalItems={filteredJobs.length}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newPageSize) => {
+              setPageSize(newPageSize);
+              setCurrentPage(1);
+            }}
+          />
         </section>
       </div>
 
@@ -387,5 +482,23 @@ export default function WorkOrdersPage() {
         />
       )}
     </main>
+  );
+}
+
+export default function WorkOrdersPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="app-page">
+          <div className="app-container">
+            <section className="app-panel-pad text-slate-500">
+              Loading jobs...
+            </section>
+          </div>
+        </main>
+      }
+    >
+      <WorkOrdersContent />
+    </Suspense>
   );
 }

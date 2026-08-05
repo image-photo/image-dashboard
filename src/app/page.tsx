@@ -17,6 +17,10 @@ import {
 } from "@/lib/dates";
 import Link from "next/link";
 import FeedbackModal from "@/components/feedback-modal";
+import NewCustomerModal from "@/components/new-customer-modal";
+import QuickActionModal from "@/components/quick-action-modal";
+import NewContactPage from "@/app/contacts/new/page";
+import NewWorkOrderPage from "@/app/new-work-order/page";
 import {
   ArrowRight,
   Briefcase,
@@ -64,6 +68,9 @@ export default function HomePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [myJobs, setMyJobs] = useState<Job[]>([]);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [quickAction, setQuickAction] = useState<
+    "customer" | "contact" | "work-order" | null
+  >(null);
 
   useEffect(() => {
     const loadDashboard = async () => {
@@ -143,6 +150,81 @@ export default function HomePage() {
     loadDashboard();
   }, []);
 
+  useEffect(() => {
+    const handleContactCreated = (event: Event) => {
+      const createdEvent = event as CustomEvent<{
+        id: number;
+        organization_name: string | null;
+      }>;
+
+      createdEvent.preventDefault();
+      setQuickAction(null);
+      setFeedback({
+        title: "Contact Added",
+        message: `${createdEvent.detail.organization_name || "The contact"} was added to the contact directory.`,
+        tone: "success",
+      });
+    };
+
+    const handleWorkOrderCreated = (event: Event) => {
+      const createdEvent = event as CustomEvent<Job>;
+      const job = createdEvent.detail;
+      const todayString = getLocalDateString();
+      const weekString = getLocalDateStringDaysFromNow(7);
+
+      createdEvent.preventDefault();
+      setQuickAction(null);
+
+      if (job.status === "Open") {
+        setOpenJobs((currentCount) => currentCount + 1);
+      } else if (job.status === "In Progress") {
+        setInProgressJobs((currentCount) => currentCount + 1);
+      }
+
+      if (
+        job.due_date &&
+        job.due_date >= todayString &&
+        job.due_date <= weekString &&
+        job.status !== "Done" &&
+        job.status !== "Canceled" &&
+        job.status !== "Archived"
+      ) {
+        setWeekJobs((currentJobs) =>
+          [...currentJobs, job].sort((a, b) =>
+            (a.due_date || "").localeCompare(b.due_date || "")
+          )
+        );
+      }
+
+      if (
+        job.assigned_user_id === profile?.id &&
+        job.status !== "Done" &&
+        job.status !== "Canceled" &&
+        job.status !== "Archived"
+      ) {
+        setMyJobs((currentJobs) =>
+          [...currentJobs, job].sort((a, b) =>
+            (a.due_date || "").localeCompare(b.due_date || "")
+          )
+        );
+      }
+
+      setFeedback({
+        title: "Work Order Created",
+        message: `WO-${String(job.id).padStart(6, "0")} was created successfully.`,
+        tone: "success",
+      });
+    };
+
+    window.addEventListener("contact-created", handleContactCreated);
+    window.addEventListener("work-order-created", handleWorkOrderCreated);
+
+    return () => {
+      window.removeEventListener("contact-created", handleContactCreated);
+      window.removeEventListener("work-order-created", handleWorkOrderCreated);
+    };
+  }, [profile?.id]);
+
   // Helpers
   // Controls the badge colors for job statuses
   const getStatusClass = (status: string | null) => {
@@ -208,13 +290,14 @@ export default function HomePage() {
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Link
-              href="/new-work-order"
+            <button
+              type="button"
+              onClick={() => setQuickAction("work-order")}
               className="app-button-primary"
             >
               <Plus size={18} />
               New Work Order
-            </Link>
+            </button>
 
             <Link
               href="/work-orders"
@@ -229,7 +312,7 @@ export default function HomePage() {
         {/* Status Summary */}
         <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Link
-            href="/work-orders"
+            href={{ pathname: "/work-orders", query: { status: "Active" } }}
             className="app-panel-pad hover:bg-blue-50 transition-colors"
           >
             <div className="flex items-center justify-between">
@@ -242,7 +325,7 @@ export default function HomePage() {
           </Link>
 
           <Link
-            href="/work-orders"
+            href={{ pathname: "/work-orders", query: { status: "Open" } }}
             className="app-panel-pad hover:bg-blue-50 transition-colors"
           >
             <div className="flex items-center justify-between">
@@ -255,7 +338,10 @@ export default function HomePage() {
           </Link>
 
           <Link
-            href="/work-orders"
+            href={{
+              pathname: "/work-orders",
+              query: { status: "In Progress" },
+            }}
             className="app-panel-pad hover:bg-blue-50 transition-colors"
           >
             <div className="flex items-center justify-between">
@@ -270,7 +356,10 @@ export default function HomePage() {
           </Link>
 
           <Link
-            href="/calendar"
+            href={{
+              pathname: "/work-orders",
+              query: { status: "Active", due: "soon" },
+            }}
             className="app-panel-pad hover:bg-blue-50 transition-colors"
           >
             <div className="flex items-center justify-between">
@@ -405,8 +494,9 @@ export default function HomePage() {
               </h2>
 
               <div className="grid gap-3">
-                <Link
-                  href="/new-work-order"
+                <button
+                  type="button"
+                  onClick={() => setQuickAction("work-order")}
                   className="flex items-center justify-between border rounded-xl p-4 font-semibold text-slate-700 hover:bg-blue-50"
                 >
                   <span className="inline-flex items-center gap-3">
@@ -414,34 +504,74 @@ export default function HomePage() {
                     New Work Order
                   </span>
                   <ArrowRight size={16} />
-                </Link>
+                </button>
 
-                <Link
-                  href="/customers"
+                <button
+                  type="button"
+                  onClick={() => setQuickAction("customer")}
                   className="flex items-center justify-between border rounded-xl p-4 font-semibold text-slate-700 hover:bg-blue-50"
                 >
                   <span className="inline-flex items-center gap-3">
                     <Users size={18} className="text-blue-700" />
-                    View Customers
+                    New Customer
                   </span>
                   <ArrowRight size={16} />
-                </Link>
+                </button>
 
-                <Link
-                  href="/contacts"
+                <button
+                  type="button"
+                  onClick={() => setQuickAction("contact")}
                   className="flex items-center justify-between border rounded-xl p-4 font-semibold text-slate-700 hover:bg-blue-50"
                 >
                   <span className="inline-flex items-center gap-3">
                     <Users size={18} className="text-blue-700" />
-                    View Contacts
+                    New Contact
                   </span>
                   <ArrowRight size={16} />
-                </Link>
+                </button>
               </div>
             </section>
           </div>
         </div>
       </div>
+
+      {quickAction === "customer" && (
+        <NewCustomerModal
+          onCancel={() => setQuickAction(null)}
+          onCreated={(customer) => {
+            setQuickAction(null);
+            setFeedback({
+              title: "Customer Added",
+              message: `${customer.first_name} ${customer.last_name} was added to the customer directory.`,
+              tone: "success",
+            });
+          }}
+          onError={(message) => {
+            setFeedback({
+              title: "Customer Save Failed",
+              message,
+            });
+          }}
+        />
+      )}
+
+      {quickAction === "contact" && (
+        <QuickActionModal
+          title="New Contact"
+          onCancel={() => setQuickAction(null)}
+        >
+          <NewContactPage />
+        </QuickActionModal>
+      )}
+
+      {quickAction === "work-order" && (
+        <QuickActionModal
+          title="New Work Order"
+          onCancel={() => setQuickAction(null)}
+        >
+          <NewWorkOrderPage />
+        </QuickActionModal>
+      )}
 
       {feedback && (
         <FeedbackModal

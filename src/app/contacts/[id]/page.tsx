@@ -8,10 +8,11 @@ Individual Contact Page
 
 // Imports
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import FeedbackModal from "@/components/feedback-modal";
+import { Trash2 } from "lucide-react";
 
 // Types
 type Contact = {
@@ -21,6 +22,10 @@ type Contact = {
   contact_role: string | null;
   phone: string | null;
   email: string | null;
+  street_address: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
   type: string | null;
   status: string | null;
   last_contacted_date: string | null;
@@ -33,6 +38,59 @@ type Feedback = {
   message: string;
   tone?: "success" | "error";
 };
+
+const usStates = [
+  "AL",
+  "AK",
+  "AZ",
+  "AR",
+  "CA",
+  "CO",
+  "CT",
+  "DE",
+  "FL",
+  "GA",
+  "HI",
+  "ID",
+  "IL",
+  "IN",
+  "IA",
+  "KS",
+  "KY",
+  "LA",
+  "ME",
+  "MD",
+  "MA",
+  "MI",
+  "MN",
+  "MS",
+  "MO",
+  "MT",
+  "NE",
+  "NV",
+  "NH",
+  "NJ",
+  "NM",
+  "NY",
+  "NC",
+  "ND",
+  "OH",
+  "OK",
+  "OR",
+  "PA",
+  "RI",
+  "SC",
+  "SD",
+  "TN",
+  "TX",
+  "UT",
+  "VT",
+  "VA",
+  "WA",
+  "WV",
+  "WI",
+  "WY",
+];
 
 const getStatusClass = (status: string | null) => {
   if (status === "Active") {
@@ -70,11 +128,17 @@ const formatDate = (dateString: string | null) => {
 export default function ContactDetailsPage() {
   const params = useParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
+  const router = useRouter();
 
   const [contact, setContact] = useState<Contact | null>(null);
   const [savedContact, setSavedContact] = useState<Contact | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showNotesForm, setShowNotesForm] = useState(false);
+  const [notesDraft, setNotesDraft] = useState("");
+  const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [errors, setErrors] = useState({
     organizationName: "",
@@ -86,6 +150,10 @@ export default function ContactDetailsPage() {
     if (numbers.length <= 3) return numbers;
     if (numbers.length <= 6) return `(${numbers.slice(0, 3)}) ${numbers.slice(3)}`;
     return `(${numbers.slice(0, 3)}) ${numbers.slice(3, 6)}-${numbers.slice(6)}`;
+  };
+
+  const formatZipCode = (value: string) => {
+    return value.replace(/\D/g, "").slice(0, 5);
   };
 
   useEffect(() => {
@@ -146,11 +214,14 @@ export default function ContactDetailsPage() {
         contact_role: contact.contact_role,
         phone: contact.phone,
         email: contact.email,
+        street_address: contact.street_address,
+        city: contact.city,
+        state: contact.state,
+        zip_code: contact.zip_code,
         type: contact.type,
         status: contact.status,
         last_contacted_date: contact.last_contacted_date || null,
         next_follow_up_date: contact.next_follow_up_date || null,
-        notes: contact.notes,
       })
       .eq("id", contact.id)
       .select("id")
@@ -171,6 +242,77 @@ export default function ContactDetailsPage() {
     });
     setSavedContact(null);
     setShowEditForm(false);
+  };
+
+  const startNotesEdit = () => {
+    if (!contact) return;
+
+    setNotesDraft(contact.notes || "");
+    setShowNotesForm(true);
+  };
+
+  const cancelNotesEdit = () => {
+    setNotesDraft("");
+    setShowNotesForm(false);
+  };
+
+  const saveNotes = async () => {
+    if (!contact || isSavingNotes) return;
+
+    setIsSavingNotes(true);
+    const updatedNotes = notesDraft.trim() || null;
+
+    const { error } = await supabase
+      .from("contacts")
+      .update({ notes: updatedNotes })
+      .eq("id", contact.id)
+      .select("id")
+      .single();
+
+    setIsSavingNotes(false);
+
+    if (error) {
+      setFeedback({
+        title: "Notes Update Failed",
+        message: error.message,
+      });
+      return;
+    }
+
+    setContact({ ...contact, notes: updatedNotes });
+    setNotesDraft("");
+    setShowNotesForm(false);
+    setFeedback({
+      title: "Notes Updated",
+      message: "The contact notes have been saved successfully.",
+      tone: "success",
+    });
+  };
+
+  const deleteContact = async () => {
+    if (!contact || isDeleting) return;
+
+    setIsDeleting(true);
+
+    const { error } = await supabase
+      .from("contacts")
+      .delete()
+      .eq("id", contact.id)
+      .select("id")
+      .single();
+
+    if (error) {
+      setIsDeleting(false);
+      setShowDeleteConfirmation(false);
+      setFeedback({
+        title: "Contact Delete Failed",
+        message: error.message,
+      });
+      return;
+    }
+
+    router.replace("/contacts");
+    router.refresh();
   };
 
   const startContactEdit = () => {
@@ -229,6 +371,8 @@ export default function ContactDetailsPage() {
     );
   }
 
+  const organizationName = contact.organization_name || "Unknown Organization";
+
   // ====================
   // Page Layout
   // ====================
@@ -242,19 +386,18 @@ export default function ContactDetailsPage() {
 
         {/* Profile Card */}
         <section className="app-panel-pad">
-          <div className="flex items-start justify-between gap-6">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="app-eyebrow">
                 Contact Profile
               </p>
 
               <h1 className="app-title">
-                {contact.organization_name || "Unknown Organization"}
+                {organizationName}
               </h1>
 
               <p className="app-subtitle">
-                {contact.contact_name || "No primary contact"}
-                {contact.contact_role ? `, ${contact.contact_role}` : ""}
+                Organization details, contact information, and follow-up.
               </p>
 
               <div className="flex flex-wrap gap-2 mt-4">
@@ -272,12 +415,24 @@ export default function ContactDetailsPage() {
               </div>
             </div>
 
-            <button
-              onClick={showEditForm ? cancelContactEdit : startContactEdit}
-              className="app-button-primary"
-            >
-              {showEditForm ? "Close Edit Contact" : "Edit Contact"}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={showEditForm ? cancelContactEdit : startContactEdit}
+                className="app-button-primary"
+              >
+                {showEditForm ? "Close Edit Contact" : "Edit Contact"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirmation(true)}
+                className="inline-flex size-10 items-center justify-center rounded-xl bg-red-600 text-white transition-colors hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+                aria-label={`Delete ${organizationName}`}
+                title="Delete Contact"
+              >
+                <Trash2 aria-hidden="true" size={20} strokeWidth={2.25} />
+              </button>
+            </div>
           </div>
 
           {showEditForm ? (
@@ -379,6 +534,76 @@ export default function ContactDetailsPage() {
                   />
                 </div>
 
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium mb-1 text-slate-700">
+                    Street Address
+                  </label>
+
+                  <input
+                    className="app-input py-2"
+                    value={contact.street_address || ""}
+                    onChange={(e) =>
+                      setContact({
+                        ...contact,
+                        street_address: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-slate-700">
+                    City
+                  </label>
+
+                  <input
+                    className="app-input py-2"
+                    value={contact.city || ""}
+                    onChange={(e) =>
+                      setContact({ ...contact, city: e.target.value })
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-slate-700">
+                    State
+                  </label>
+
+                  <select
+                    className="app-input py-2"
+                    value={contact.state || ""}
+                    onChange={(e) =>
+                      setContact({ ...contact, state: e.target.value })
+                    }
+                  >
+                    <option value="">Select state</option>
+                    {usStates.map((stateCode) => (
+                      <option key={stateCode} value={stateCode}>
+                        {stateCode}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium mb-1 text-slate-700">
+                    Zip
+                  </label>
+
+                  <input
+                    className="app-input py-2"
+                    inputMode="numeric"
+                    value={contact.zip_code || ""}
+                    onChange={(e) =>
+                      setContact({
+                        ...contact,
+                        zip_code: formatZipCode(e.target.value),
+                      })
+                    }
+                  />
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium mb-1 text-slate-700">
                     Type
@@ -456,24 +681,6 @@ export default function ContactDetailsPage() {
                   />
                 </div>
 
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium mb-1 text-slate-700">
-                    Notes
-                  </label>
-
-                  <textarea
-                    className="app-input min-h-28 py-2"
-                    value={contact.notes || ""}
-                    maxLength={500}
-                    onChange={(e) =>
-                      setContact({ ...contact, notes: e.target.value })
-                    }
-                  />
-
-                  <p className="text-sm text-slate-500 mt-1">
-                    {(contact.notes || "").length}/500 characters
-                  </p>
-                </div>
               </div>
 
               <button
@@ -484,32 +691,68 @@ export default function ContactDetailsPage() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-5 mt-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-sm text-slate-500">Primary Contact</p>
-                  <p className="font-semibold text-slate-900">
+            <div className="mt-6 grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+              <dl className="grid grid-cols-1 gap-x-8 gap-y-4 border-t border-slate-200 pt-6 md:grid-cols-2">
+                <div>
+                  <dt className="text-sm font-medium text-slate-500">
+                    Contact Person:
+                  </dt>
+                  <dd className="mt-1 font-semibold text-slate-900">
                     {contact.contact_name || "No contact"}
-                  </p>
-                  <p className="text-sm text-slate-500 mt-1">
+                  </dd>
+                </div>
+
+                <div>
+                  <dt className="text-sm font-medium text-slate-500">Role:</dt>
+                  <dd className="mt-1 font-semibold text-slate-900">
                     {contact.contact_role || "No role"}
-                  </p>
+                  </dd>
                 </div>
 
-                <div className="bg-slate-50 rounded-xl p-4">
-                  <p className="text-sm text-slate-500">Phone</p>
-                  <p className="font-semibold text-slate-900">
+                <div>
+                  <dt className="text-sm font-medium text-slate-500">Phone:</dt>
+                  <dd className="mt-1 font-semibold text-slate-900">
                     {contact.phone || "No phone"}
-                  </p>
+                  </dd>
                 </div>
 
-                <div className="bg-slate-50 rounded-xl p-4 md:col-span-2">
-                  <p className="text-sm text-slate-500">Email</p>
-                  <p className="font-semibold text-slate-900 break-words">
+                <div>
+                  <dt className="text-sm font-medium text-slate-500">Email:</dt>
+                  <dd className="mt-1 break-words font-semibold text-slate-900">
                     {contact.email || "No email"}
-                  </p>
+                  </dd>
                 </div>
-              </div>
+
+                <div className="md:col-span-2">
+                  <dt className="text-sm font-medium text-slate-500">
+                    Street Address:
+                  </dt>
+                  <dd className="mt-1 font-semibold text-slate-900">
+                    {contact.street_address || "No street address"}
+                  </dd>
+                </div>
+
+                <div>
+                  <dt className="text-sm font-medium text-slate-500">City:</dt>
+                  <dd className="mt-1 font-semibold text-slate-900">
+                    {contact.city || "No city"}
+                  </dd>
+                </div>
+
+                <div>
+                  <dt className="text-sm font-medium text-slate-500">State:</dt>
+                  <dd className="mt-1 font-semibold text-slate-900">
+                    {contact.state || "No state"}
+                  </dd>
+                </div>
+
+                <div>
+                  <dt className="text-sm font-medium text-slate-500">Zip:</dt>
+                  <dd className="mt-1 font-semibold text-slate-900">
+                    {contact.zip_code || "No zip code"}
+                  </dd>
+                </div>
+              </dl>
 
               <div className="bg-slate-50 rounded-xl p-4">
                 <p className="text-sm text-slate-500">Follow-Up</p>
@@ -539,11 +782,64 @@ export default function ContactDetailsPage() {
 
         {/* Notes Card */}
         <section className="app-panel-pad">
-          <h2 className="text-xl font-bold text-slate-900 mb-3">Notes</h2>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-xl font-bold text-slate-900">Notes</h2>
 
-          <p className="text-slate-700 whitespace-pre-wrap">
-            {contact.notes || "No notes added for this contact."}
-          </p>
+            {!showNotesForm && (
+              <button
+                type="button"
+                onClick={startNotesEdit}
+                className="app-button-secondary"
+              >
+                + Add Notes
+              </button>
+            )}
+          </div>
+
+          {showNotesForm ? (
+            <div className="mt-4">
+              <label
+                htmlFor="contact-notes"
+                className="mb-1 block text-sm font-medium text-slate-700"
+              >
+                Contact Notes
+              </label>
+              <textarea
+                id="contact-notes"
+                className="app-input min-h-32"
+                value={notesDraft}
+                maxLength={500}
+                autoFocus
+                onChange={(event) => setNotesDraft(event.target.value)}
+              />
+              <p className="mt-1 text-sm text-slate-500">
+                {notesDraft.length}/500 characters
+              </p>
+
+              <div className="mt-4 flex flex-wrap gap-3">
+                <button
+                  type="button"
+                  onClick={saveNotes}
+                  disabled={isSavingNotes}
+                  className="app-button-primary disabled:cursor-not-allowed disabled:bg-slate-400"
+                >
+                  {isSavingNotes ? "Saving Notes..." : "Save Notes"}
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelNotesEdit}
+                  disabled={isSavingNotes}
+                  className="app-button-secondary"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="mt-3 whitespace-pre-wrap text-slate-700">
+              {contact.notes || "No notes added for this contact."}
+            </p>
+          )}
         </section>
       </div>
 
@@ -554,6 +850,57 @@ export default function ContactDetailsPage() {
           tone={feedback.tone}
           onClose={() => setFeedback(null)}
         />
+      )}
+
+      {showDeleteConfirmation && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !isDeleting) {
+              setShowDeleteConfirmation(false);
+            }
+          }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border bg-white p-6 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-contact-title"
+            aria-describedby="delete-contact-description"
+          >
+            <h2
+              id="delete-contact-title"
+              className="text-2xl font-bold text-slate-900"
+            >
+              Delete Contact?
+            </h2>
+            <p id="delete-contact-description" className="mt-2 text-slate-600">
+              Would you like to permanently delete {organizationName}? This
+              action cannot be undone.
+            </p>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirmation(false)}
+                className="app-button-secondary"
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={deleteContact}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isDeleting}
+              >
+                <Trash2 aria-hidden="true" size={18} />
+                {isDeleting ? "Deleting..." : "Delete Contact"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );

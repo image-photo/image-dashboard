@@ -10,10 +10,12 @@ Information for individual customers and their related work orders.
 
 // Imports
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import FeedbackModal from "@/components/feedback-modal";
+import TablePagination from "@/components/table-pagination";
+import { Trash2 } from "lucide-react";
 
 // Types
 type Customer = {
@@ -182,12 +184,17 @@ const getPickupDeliveryStatusClass = (status: string | null) => {
 export default function CustomerDetailsPage() {
   const params = useParams();
   const id = params.id;
+  const router = useRouter();
 
   const [customer, setCustomer] = useState<Customer | null>(null);
   const [savedCustomer, setSavedCustomer] = useState<Customer | null>(null);
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([]);
+  const [jobPageSize, setJobPageSize] = useState(5);
+  const [currentJobPage, setCurrentJobPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
   const [errors, setErrors] = useState({
@@ -245,6 +252,7 @@ export default function CustomerDetailsPage() {
         return;
       }
 
+      setCurrentJobPage(1);
       setWorkOrders(data || []);
     };
 
@@ -331,6 +339,58 @@ export default function CustomerDetailsPage() {
     setShowEditForm(false);
   };
 
+  const deleteCustomer = async () => {
+    if (!customer || isDeleting) return;
+
+    setIsDeleting(true);
+
+    const { count, error: jobsError } = await supabase
+      .from("work_orders")
+      .select("id", { count: "exact", head: true })
+      .eq("customer_id", customer.id);
+
+    if (jobsError) {
+      setIsDeleting(false);
+      setShowDeleteConfirmation(false);
+      setFeedback({
+        title: "Customer Delete Failed",
+        message: `The customer's job history could not be checked. ${jobsError.message}`,
+      });
+      return;
+    }
+
+    if ((count || 0) > 0) {
+      setIsDeleting(false);
+      setShowDeleteConfirmation(false);
+      setFeedback({
+        title: "Customer Has Existing Jobs",
+        message:
+          "This customer cannot be deleted because they have job history. Keep the customer record so those jobs remain connected and auditable.",
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from("customers")
+      .delete()
+      .eq("id", customer.id)
+      .select("id")
+      .single();
+
+    if (error) {
+      setIsDeleting(false);
+      setShowDeleteConfirmation(false);
+      setFeedback({
+        title: "Customer Delete Failed",
+        message: error.message,
+      });
+      return;
+    }
+
+    router.replace("/customers");
+    router.refresh();
+  };
+
   if (isLoading) {
     return (
       <main className="app-page">
@@ -369,13 +429,14 @@ export default function CustomerDetailsPage() {
     );
   }
 
-  const addressLine = [
-    customer.street_address,
-    [customer.city, customer.state].filter(Boolean).join(", "),
-    customer.zip_code,
-  ]
-    .filter(Boolean)
-    .join(" ");
+  const customerName =
+    `${customer.first_name || ""} ${customer.last_name || ""}`.trim() ||
+    "Unnamed Customer";
+
+  const paginatedWorkOrders = workOrders.slice(
+    (currentJobPage - 1) * jobPageSize,
+    currentJobPage * jobPageSize
+  );
 
   // ====================
   // PAGE LAYOUT
@@ -392,14 +453,14 @@ export default function CustomerDetailsPage() {
 
         {/*Profile Card*/}
         <section className="app-panel-pad">
-          <div className="flex items-start justify-between gap-6">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <p className="app-eyebrow">
                 Customer Profile
               </p>
 
               <h1 className="app-title">
-                {customer.first_name} {customer.last_name}
+                {customerName}
               </h1>
 
               <p className="app-subtitle">
@@ -407,12 +468,24 @@ export default function CustomerDetailsPage() {
               </p>
             </div>
 
-            <button
-              onClick={showEditForm ? cancelCustomerEdit : startCustomerEdit}
-              className="app-button-primary"
-            >
-              {showEditForm ? "Close Edit Customer" : "Edit Customer"}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={showEditForm ? cancelCustomerEdit : startCustomerEdit}
+                className="app-button-primary"
+              >
+                {showEditForm ? "Close Edit Customer" : "Edit Customer"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirmation(true)}
+                className="inline-flex size-10 items-center justify-center rounded-xl bg-red-600 text-white transition-colors hover:bg-red-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-600"
+                aria-label={`Delete ${customerName}`}
+                title="Delete Customer"
+              >
+                <Trash2 aria-hidden="true" size={20} strokeWidth={2.25} />
+              </button>
+            </div>
           </div>
 
           {showEditForm ? (
@@ -542,35 +615,51 @@ export default function CustomerDetailsPage() {
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-              <div className="bg-slate-50 rounded-xl p-4">
-                <p className="text-sm text-slate-500">Phone</p>
-                <p className="font-semibold text-slate-900">
+            <dl className="mt-6 grid grid-cols-1 gap-x-8 gap-y-4 border-t border-slate-200 pt-6 md:grid-cols-2">
+              <div>
+                <dt className="text-sm font-medium text-slate-500">Phone:</dt>
+                <dd className="mt-1 font-semibold text-slate-900">
                   {customer.phone || "No phone"}
-                </p>
+                </dd>
               </div>
 
-              <div className="bg-slate-50 rounded-xl p-4">
-                <p className="text-sm text-slate-500">Email</p>
-                <p className="font-semibold text-slate-900">
+              <div>
+                <dt className="text-sm font-medium text-slate-500">Email:</dt>
+                <dd className="mt-1 break-words font-semibold text-slate-900">
                   {customer.email || "No email"}
-                </p>
+                </dd>
               </div>
 
-              <div className="bg-slate-50 rounded-xl p-4">
-                <p className="text-sm text-slate-500">Jobs</p>
-                <p className="font-semibold text-slate-900">
-                  {workOrders.length}
-                </p>
+              <div className="md:col-span-2">
+                <dt className="text-sm font-medium text-slate-500">
+                  Street Address:
+                </dt>
+                <dd className="mt-1 font-semibold text-slate-900">
+                  {customer.street_address || "No street address"}
+                </dd>
               </div>
 
-              <div className="bg-slate-50 rounded-xl p-4 md:col-span-3">
-                <p className="text-sm text-slate-500">Address</p>
-                <p className="font-semibold text-slate-900">
-                  {addressLine || "No address"}
-                </p>
+              <div>
+                <dt className="text-sm font-medium text-slate-500">City:</dt>
+                <dd className="mt-1 font-semibold text-slate-900">
+                  {customer.city || "No city"}
+                </dd>
               </div>
-            </div>
+
+              <div>
+                <dt className="text-sm font-medium text-slate-500">State:</dt>
+                <dd className="mt-1 font-semibold text-slate-900">
+                  {customer.state || "No state"}
+                </dd>
+              </div>
+
+              <div>
+                <dt className="text-sm font-medium text-slate-500">Zip:</dt>
+                <dd className="mt-1 font-semibold text-slate-900">
+                  {customer.zip_code || "No zip code"}
+                </dd>
+              </div>
+            </dl>
           )}
         </section>
 
@@ -581,7 +670,7 @@ export default function CustomerDetailsPage() {
           </h2>
 
           <div className="border rounded-xl overflow-hidden">
-            {workOrders.map((job) => (
+            {paginatedWorkOrders.map((job) => (
               <Link
                 key={job.id}
                 href={`/work-orders/${job.id}`}
@@ -640,6 +729,18 @@ export default function CustomerDetailsPage() {
                 No jobs found for this customer.
               </p>
             )}
+
+            <TablePagination
+              currentPage={currentJobPage}
+              itemLabel="jobs"
+              pageSize={jobPageSize}
+              totalItems={workOrders.length}
+              onPageChange={setCurrentJobPage}
+              onPageSizeChange={(newPageSize) => {
+                setJobPageSize(newPageSize);
+                setCurrentJobPage(1);
+              }}
+            />
           </div>
         </section>
         
@@ -652,6 +753,65 @@ export default function CustomerDetailsPage() {
           tone={feedback.tone}
           onClose={() => setFeedback(null)}
         />
+      )}
+
+      {showDeleteConfirmation && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-6"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget && !isDeleting) {
+              setShowDeleteConfirmation(false);
+            }
+          }}
+        >
+          <div
+            className="w-full max-w-md rounded-2xl border bg-white p-6 shadow-xl"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-customer-title"
+            aria-describedby="delete-customer-description"
+          >
+            <h2
+              id="delete-customer-title"
+              className="text-2xl font-bold text-slate-900"
+            >
+              Delete Customer?
+            </h2>
+
+            <p
+              id="delete-customer-description"
+              className="mt-2 text-slate-600"
+            >
+              {workOrders.length > 0
+                ? `${customerName} has ${workOrders.length} ${
+                    workOrders.length === 1 ? "job" : "jobs"
+                  }. To protect job history, this customer cannot be deleted.`
+                : `Would you like to permanently delete ${customerName}? This action cannot be undone.`}
+            </p>
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setShowDeleteConfirmation(false)}
+                className="app-button-secondary"
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={deleteCustomer}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600 px-4 py-2 font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isDeleting || workOrders.length > 0}
+              >
+                <Trash2 aria-hidden="true" size={18} />
+                {isDeleting ? "Deleting..." : "Delete Customer"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </main>

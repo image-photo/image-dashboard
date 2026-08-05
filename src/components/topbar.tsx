@@ -130,6 +130,24 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
   }, []);
 
   useEffect(() => {
+    const handleProfileUpdate = (event: Event) => {
+      const { fullName } = (event as CustomEvent<{ fullName: string }>).detail;
+
+      setProfile((currentProfile) =>
+        currentProfile
+          ? { ...currentProfile, full_name: fullName }
+          : currentProfile
+      );
+    };
+
+    window.addEventListener("profile-updated", handleProfileUpdate);
+
+    return () => {
+      window.removeEventListener("profile-updated", handleProfileUpdate);
+    };
+  }, []);
+
+  useEffect(() => {
     const cleanedSearch = sanitizeSearchTerm(searchTerm);
     const requestId = ++searchRequestId.current;
 

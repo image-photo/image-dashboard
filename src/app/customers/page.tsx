@@ -14,6 +14,8 @@ import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import FeedbackModal from "@/components/feedback-modal";
+import NewCustomerModal from "@/components/new-customer-modal";
+import TablePagination from "@/components/table-pagination";
 
 // Types
 type Customer = {
@@ -21,6 +23,7 @@ type Customer = {
   first_name: string | null;
   last_name: string | null;
   phone: string | null;
+  email: string | null;
 };
 
 type Feedback = {
@@ -37,6 +40,9 @@ export default function CustomersPage() {
   //States
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [pageSize, setPageSize] = useState(10);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [showNewCustomerModal, setShowNewCustomerModal] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
 
   const router = useRouter();
@@ -45,7 +51,7 @@ export default function CustomersPage() {
     const loadCustomers = async () => {
       const { data, error } = await supabase
         .from("customers")
-        .select("id, first_name, last_name, phone")
+        .select("id, first_name, last_name, phone, email")
         .order("last_name", { ascending: true });
       
       if (error) {
@@ -69,9 +75,15 @@ export default function CustomersPage() {
     return (
       customer.first_name?.toLowerCase().includes(search) ||
       customer.last_name?.toLowerCase().includes(search) ||
-      customer.phone?.toLowerCase().includes(search)
+      customer.phone?.toLowerCase().includes(search) ||
+      customer.email?.toLowerCase().includes(search)
     );
   });
+
+  const paginatedCustomers = filteredCustomers.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
 
   // ====================
   // PAGE LAYOUT
@@ -98,36 +110,50 @@ export default function CustomersPage() {
             </p>
           </div>
 
-          <Link
-            href="/new-work-order"
-            className="app-button-primary"
-          >
-            + New Work Order
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => setShowNewCustomerModal(true)}
+              className="app-button-secondary bg-white"
+            >
+              + New Customer
+            </button>
+
+            <Link
+              href="/new-work-order"
+              className="app-button-primary"
+            >
+              + New Work Order
+            </Link>
+          </div>
         </div>
         
         {/*Search Bar*/}
         <input
           className="app-input"
-          placeholder="Search customers by name or phone..."
+          placeholder="Search customers by name, phone, or email..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => {
+            setSearchTerm(e.target.value);
+            setCurrentPage(1);
+          }}
         />
 
         {/*Table*/}
         <section className="app-panel overflow-hidden">
           <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-left">
+          <table className="w-full min-w-[720px] text-left">
             <thead className="bg-slate-900 text-white">
               <tr>
                 <th className="p-4 text-sm font-semibold">Last Name</th>
                 <th className="p-4 text-sm font-semibold">First Name</th>
                 <th className="p-4 text-sm font-semibold">Phone</th>
+                <th className="p-4 text-sm font-semibold">Email</th>
               </tr>
             </thead>
 
             <tbody>
-              {filteredCustomers.map((customer) => (
+              {paginatedCustomers.map((customer) => (
                 <tr
                   key={customer.id}
                   onClick={() => {
@@ -146,12 +172,16 @@ export default function CustomersPage() {
                   <td className="p-4 text-slate-700">
                     {customer.phone || "No phone"}
                   </td>
+
+                  <td className="p-4 text-slate-700">
+                    {customer.email || "No email"}
+                  </td>
                 </tr>
               ))}
 
               {filteredCustomers.length === 0 && (
                 <tr>
-                  <td className="p-6 text-slate-500" colSpan={3}>
+                  <td className="p-6 text-slate-500" colSpan={4}>
                     No customers found.
                   </td>
                 </tr>
@@ -159,9 +189,46 @@ export default function CustomersPage() {
             </tbody>
           </table>
           </div>
+
+          <TablePagination
+            currentPage={currentPage}
+            itemLabel="customers"
+            pageSize={pageSize}
+            totalItems={filteredCustomers.length}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(newPageSize) => {
+              setPageSize(newPageSize);
+              setCurrentPage(1);
+            }}
+          />
         </section>
 
       </div>
+
+      {showNewCustomerModal && (
+        <NewCustomerModal
+          onCancel={() => setShowNewCustomerModal(false)}
+          onCreated={(newCustomer) => {
+            setCustomers((currentCustomers) =>
+              [...currentCustomers, newCustomer].sort((a, b) =>
+                (a.last_name || "").localeCompare(b.last_name || "")
+              )
+            );
+            setShowNewCustomerModal(false);
+            setFeedback({
+              title: "Customer Added",
+              message: `${newCustomer.first_name} ${newCustomer.last_name} was added to the customer directory.`,
+              tone: "success",
+            });
+          }}
+          onError={(message) => {
+            setFeedback({
+              title: "Customer Save Failed",
+              message,
+            });
+          }}
+        />
+      )}
 
       {feedback && (
         <FeedbackModal

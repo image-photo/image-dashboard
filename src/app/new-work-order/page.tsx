@@ -39,6 +39,18 @@ type Feedback = {
   tone?: "success" | "error";
 };
 
+type NewWorkOrderRecord = {
+  id: number;
+  due_date: string | null;
+  project_type: string | null;
+  status: string | null;
+  assigned_user_id: string | null;
+  customers: {
+    first_name: string | null;
+    last_name: string | null;
+  } | null;
+};
+
 const usStates = [
   "AL",
   "AK",
@@ -445,20 +457,36 @@ export default function NewWorkOrderPage() {
       newlyCreatedCustomer = customerData as Customer;
     }
 
-    const { error: workOrderError } = await supabase.from("work_orders").insert([
-      {
-        customer_id: customerId,
-        due_date: dueDate,
-        project_type: projectType,
-        assigned_user_id: assignedUserId || null,
-        project_options: projectOptions,
-        description,
-        status: "Open",
-        payment_status: paymentStatus,
-        notification_status: notificationStatus,
-        pickup_delivery_status: pickupDeliveryStatus,
-      },
-    ]);
+    const { data: workOrderData, error: workOrderError } = await supabase
+      .from("work_orders")
+      .insert([
+        {
+          customer_id: customerId,
+          due_date: dueDate,
+          project_type: projectType,
+          assigned_user_id: assignedUserId || null,
+          project_options: projectOptions,
+          description,
+          status: "Open",
+          payment_status: paymentStatus,
+          notification_status: notificationStatus,
+          pickup_delivery_status: pickupDeliveryStatus,
+        },
+      ])
+      .select(
+        `
+        id,
+        due_date,
+        project_type,
+        status,
+        assigned_user_id,
+        customers (
+          first_name,
+          last_name
+        )
+      `
+      )
+      .single();
 
     if (workOrderError) {
       let rollbackMessage = "";
@@ -488,7 +516,20 @@ export default function NewWorkOrderPage() {
     }
 
     setIsSaving(false);
-    setShowSuccessModal(true);
+
+    const createdEvent = new CustomEvent<NewWorkOrderRecord>(
+      "work-order-created",
+      {
+        detail: workOrderData as unknown as NewWorkOrderRecord,
+        cancelable: true,
+      }
+    );
+
+    window.dispatchEvent(createdEvent);
+
+    if (!createdEvent.defaultPrevented) {
+      setShowSuccessModal(true);
+    }
 
     setSearchTerm("");
     setSearchResults([]);
