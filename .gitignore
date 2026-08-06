@@ -19,6 +19,11 @@
 
 # production
 /build
+/.open-next/
+/.wrangler/
+
+# generated Cloudflare types
+/cloudflare-env.d.ts
 
 # misc
 .DS_Store
