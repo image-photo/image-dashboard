@@ -193,7 +193,7 @@ export default function NewCustomerModal({
           </p>
         </div>
 
-        <form onSubmit={saveCustomer} className="mt-6">
+        <form onSubmit={saveCustomer} className="mt-6" autoComplete="off">
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <label
@@ -300,7 +300,7 @@ export default function NewCustomerModal({
               <input
                 id="new-customer-street-address"
                 className="app-input"
-                autoComplete="street-address"
+                autoComplete="off"
                 value={streetAddress}
                 onChange={(event) => setStreetAddress(event.target.value)}
               />
@@ -316,7 +316,7 @@ export default function NewCustomerModal({
               <input
                 id="new-customer-city"
                 className="app-input"
-                autoComplete="address-level2"
+                autoComplete="off"
                 value={city}
                 onChange={(event) => setCity(event.target.value)}
               />
@@ -332,7 +332,7 @@ export default function NewCustomerModal({
               <select
                 id="new-customer-state"
                 className="app-input"
-                autoComplete="address-level1"
+                autoComplete="off"
                 value={state}
                 onChange={(event) => setState(event.target.value)}
               >
@@ -356,7 +356,7 @@ export default function NewCustomerModal({
                 id="new-customer-zip-code"
                 className="app-input"
                 inputMode="numeric"
-                autoComplete="postal-code"
+                autoComplete="off"
                 value={zipCode}
                 onChange={(event) =>
                   setZipCode(formatZipCode(event.target.value))

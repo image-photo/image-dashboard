@@ -555,6 +555,7 @@ export default function ContactDetailsPage() {
 
                   <input
                     className="app-input py-2"
+                    autoComplete="off"
                     value={contact.street_address || ""}
                     onChange={(e) =>
                       setContact({
@@ -572,6 +573,7 @@ export default function ContactDetailsPage() {
 
                   <input
                     className="app-input py-2"
+                    autoComplete="off"
                     value={contact.city || ""}
                     onChange={(e) =>
                       setContact({ ...contact, city: e.target.value })
@@ -586,6 +588,7 @@ export default function ContactDetailsPage() {
 
                   <select
                     className="app-input py-2"
+                    autoComplete="off"
                     value={contact.state || ""}
                     onChange={(e) =>
                       setContact({ ...contact, state: e.target.value })
@@ -608,6 +611,7 @@ export default function ContactDetailsPage() {
                   <input
                     className="app-input py-2"
                     inputMode="numeric"
+                    autoComplete="off"
                     value={contact.zip_code || ""}
                     onChange={(e) =>
                       setContact({
@@ -733,7 +737,16 @@ export default function ContactDetailsPage() {
                 <div>
                   <dt className="text-sm font-medium text-slate-500">Email:</dt>
                   <dd className="mt-1 break-words font-semibold text-slate-900">
-                    {contact.email || "No email"}
+                    {contact.email ? (
+                      <a
+                        href={`mailto:${contact.email}`}
+                        className="text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-900"
+                      >
+                        {contact.email}
+                      </a>
+                    ) : (
+                      "No email"
+                    )}
                   </dd>
                 </div>
 

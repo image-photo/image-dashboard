@@ -628,6 +628,7 @@ export default function NewWorkOrderPage() {
                     <input
                       className="border p-2 rounded text-slate-900 md:col-span-2"
                       placeholder="Street Address"
+                      autoComplete="off"
                       value={selectedCustomerEdits.street_address}
                       onChange={(e) =>
                         setSelectedCustomerEdits({
@@ -640,6 +641,7 @@ export default function NewWorkOrderPage() {
                     <input
                       className="border p-2 rounded text-slate-900"
                       placeholder="City"
+                      autoComplete="off"
                       value={selectedCustomerEdits.city}
                       onChange={(e) =>
                         setSelectedCustomerEdits({
@@ -651,6 +653,7 @@ export default function NewWorkOrderPage() {
 
                     <select
                       className="border p-2 rounded text-slate-900"
+                      autoComplete="off"
                       value={selectedCustomerEdits.state}
                       onChange={(e) =>
                         setSelectedCustomerEdits({
@@ -670,6 +673,7 @@ export default function NewWorkOrderPage() {
                     <input
                       className="border p-2 rounded text-slate-900"
                       placeholder="Zip Code"
+                      autoComplete="off"
                       value={selectedCustomerEdits.zip_code}
                       onChange={(e) =>
                         setSelectedCustomerEdits({
@@ -856,6 +860,7 @@ export default function NewWorkOrderPage() {
                 <input
                   className="border p-2 rounded text-slate-900 md:col-span-2"
                   placeholder="Street Address"
+                  autoComplete="off"
                   value={streetAddress}
                   onChange={(e) => setStreetAddress(e.target.value)}
                 />
@@ -863,12 +868,14 @@ export default function NewWorkOrderPage() {
                 <input
                   className="border p-2 rounded text-slate-900"
                   placeholder="City"
+                  autoComplete="off"
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                 />
 
                 <select
                   className="border p-2 rounded text-slate-900"
+                  autoComplete="off"
                   value={state}
                   onChange={(e) => setState(e.target.value)}
                 >
@@ -883,6 +890,7 @@ export default function NewWorkOrderPage() {
                 <input
                   className="border p-2 rounded text-slate-900"
                   placeholder="Zip Code"
+                  autoComplete="off"
                   value={zipCode}
                   onChange={(e) => setZipCode(formatZipCode(e.target.value))}
                 />

@@ -553,6 +553,7 @@ export default function CustomerDetailsPage() {
                 <input
                   className="app-input py-2 md:col-span-2"
                   placeholder="Street Address"
+                  autoComplete="off"
                   value={customer.street_address || ""}
                   onChange={(e) =>
                     setCustomer({ ...customer, street_address: e.target.value })
@@ -562,6 +563,7 @@ export default function CustomerDetailsPage() {
                 <input
                   className="app-input py-2"
                   placeholder="City"
+                  autoComplete="off"
                   value={customer.city || ""}
                   onChange={(e) =>
                     setCustomer({ ...customer, city: e.target.value })
@@ -570,6 +572,7 @@ export default function CustomerDetailsPage() {
 
                 <select
                   className="app-input py-2"
+                  autoComplete="off"
                   value={customer.state || ""}
                   onChange={(e) =>
                     setCustomer({ ...customer, state: e.target.value })
@@ -586,6 +589,7 @@ export default function CustomerDetailsPage() {
                 <input
                   className="app-input py-2"
                   placeholder="Zip Code"
+                  autoComplete="off"
                   value={customer.zip_code || ""}
                   onChange={(e) =>
                     setCustomer({
@@ -645,7 +649,16 @@ export default function CustomerDetailsPage() {
               <div>
                 <dt className="text-sm font-medium text-slate-500">Email:</dt>
                 <dd className="mt-1 break-words font-semibold text-slate-900">
-                  {customer.email || "No email"}
+                  {customer.email ? (
+                    <a
+                      href={`mailto:${customer.email}`}
+                      className="text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-900"
+                    >
+                      {customer.email}
+                    </a>
+                  ) : (
+                    "No email"
+                  )}
                 </dd>
               </div>
 

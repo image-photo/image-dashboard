@@ -298,7 +298,7 @@ export default function NewContactPage() {
 
               <input
                 className="app-input"
-                autoComplete="street-address"
+                autoComplete="off"
                 value={streetAddress}
                 onChange={(e) => setStreetAddress(e.target.value)}
               />
@@ -311,7 +311,7 @@ export default function NewContactPage() {
 
               <input
                 className="app-input"
-                autoComplete="address-level2"
+                autoComplete="off"
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
               />
@@ -324,7 +324,7 @@ export default function NewContactPage() {
 
               <select
                 className="app-input"
-                autoComplete="address-level1"
+                autoComplete="off"
                 value={state}
                 onChange={(e) => setState(e.target.value)}
               >
@@ -345,7 +345,7 @@ export default function NewContactPage() {
               <input
                 className="app-input"
                 inputMode="numeric"
-                autoComplete="postal-code"
+                autoComplete="off"
                 value={zipCode}
                 onChange={(e) => setZipCode(formatZipCode(e.target.value))}
               />

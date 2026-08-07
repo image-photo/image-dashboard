@@ -1,68 +1,27 @@
-"use client";
-
-// Imports
+import type { Metadata } from "next";
 import "./globals.css";
-import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
-import Sidebar from "@/components/sidebar";
-import AuthGuard from "@/components/AuthGuard";
-import Topbar from "@/components/topbar";
+import AppShell from "@/components/app-shell";
+
+export const metadata: Metadata = {
+  title: "Image Studio",
+  description: "Image Studio workflow system",
+  applicationName: "Image Studio",
+  icons: {
+    icon: [{ url: "/icon_logo.png", type: "image/png" }],
+    shortcut: "/icon_logo.png",
+    apple: "/icon_logo.png",
+  },
+};
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
-  const pathname = usePathname();
-  const isAuthPage = pathname === "/login" || pathname === "/reset-password";
-  const [isMobileNavigationOpen, setIsMobileNavigationOpen] = useState(false);
-
-  useEffect(() => {
-    if (!isMobileNavigationOpen) return;
-
-    const previousOverflow = document.body.style.overflow;
-    const desktopMediaQuery = window.matchMedia("(min-width: 1024px)");
-    const closeOnDesktop = (event: MediaQueryListEvent) => {
-      if (event.matches) setIsMobileNavigationOpen(false);
-    };
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setIsMobileNavigationOpen(false);
-    };
-
-    document.body.style.overflow = "hidden";
-    desktopMediaQuery.addEventListener("change", closeOnDesktop);
-    window.addEventListener("keydown", closeOnEscape);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      desktopMediaQuery.removeEventListener("change", closeOnDesktop);
-      window.removeEventListener("keydown", closeOnEscape);
-    };
-  }, [isMobileNavigationOpen]);
-
+}>) {
   return (
     <html lang="en">
       <body>
-        {isAuthPage ? (
-          children
-        ) : (
-          <AuthGuard>
-            <div className="min-h-screen flex">
-              <Sidebar
-                isMobileOpen={isMobileNavigationOpen}
-                onMobileClose={() => setIsMobileNavigationOpen(false)}
-              />
-
-              <div className="flex-1 min-w-0">
-                <Topbar
-                  onMenuClick={() => setIsMobileNavigationOpen(true)}
-                />
-
-                {children}
-              </div>
-            </div>
-          </AuthGuard>
-        )}
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
