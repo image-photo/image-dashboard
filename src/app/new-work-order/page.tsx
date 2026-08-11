@@ -981,6 +981,7 @@ export default function NewWorkOrderPage() {
                   <option value="Transfer">Transfer</option>
                   <option value="Scan / Reproduction">Scan / Reproduction</option>
                   <option value="Studio Session">Studio Session</option>
+                  <option value="Other">Other</option>
                 </select>
 
                 {projectErrors.projectType && (
@@ -1058,7 +1059,7 @@ export default function NewWorkOrderPage() {
                 </select>
               </div>
 
-              {projectType && (
+              {Object.keys(optionChoices[projectType] || {}).length > 0 && (
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium mb-4 text-slate-700">
                     Project Details

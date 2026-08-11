@@ -113,7 +113,6 @@ export default function ContactsPage() {
       contact.contact_name,
       contact.contact_role,
       contact.phone,
-      contact.email,
       contact.type,
       contact.status,
       contact.last_contacted_date,
@@ -159,7 +158,7 @@ export default function ContactsPage() {
         {/* Search Bar */}
         <input
           className="app-input"
-          placeholder="Search organizations, contacts, email, phone, or notes..."
+          placeholder="Search organizations, contacts, phone, or notes..."
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);

@@ -683,6 +683,7 @@ export default function WorkOrderDetailsPage() {
                         Scan / Reproduction
                       </option>
                       <option value="Studio Session">Studio Session</option>
+                      <option value="Other">Other</option>
                     </select>
                   </div>
 
@@ -714,7 +715,10 @@ export default function WorkOrderDetailsPage() {
                     </select>
                   </div>
 
-                  {workOrder.project_type && (
+                  {workOrder.project_type &&
+                    Object.keys(
+                      optionChoices[workOrder.project_type] || {}
+                    ).length > 0 && (
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium mb-4 text-slate-700">
                         Project Details
