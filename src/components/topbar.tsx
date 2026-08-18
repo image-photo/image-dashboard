@@ -46,6 +46,7 @@ type JobResult = {
   project_type: string | null;
   description: string | null;
   status: string | null;
+  proof_status: string | null;
   assigned_user_id: string | null;
   customers: {
     first_name: string | null;
@@ -104,6 +105,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
           due_date,
           project_type,
           status,
+          proof_status,
           assigned_user_id,
           customers (
             first_name,
@@ -175,6 +177,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
           project_type,
           description,
           status,
+          proof_status,
           assigned_user_id,
           customers (
             first_name,
@@ -187,7 +190,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
         ? jobsQuery.eq("id", Number(workOrderMatch[1])).limit(5)
         : jobsQuery
             .or(
-              `project_type.ilike.%${customerSearch}%,status.ilike.%${customerSearch}%,description.ilike.%${customerSearch}%`
+              `project_type.ilike.%${customerSearch}%,status.ilike.%${customerSearch}%,proof_status.ilike.%${customerSearch}%,description.ilike.%${customerSearch}%`
             )
             .limit(50);
 
@@ -284,6 +287,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
             job.project_type,
             job.description,
             job.status,
+            job.proof_status,
           ]
             .filter(Boolean)
             .join(" ")
@@ -304,6 +308,7 @@ export default function Topbar({ onMenuClick }: TopbarProps) {
                 : null,
               job.project_type,
               job.status,
+              job.proof_status !== "Not Required" ? job.proof_status : null,
             ]
               .filter(Boolean)
               .join(" • ") || "Job record",

@@ -12,6 +12,10 @@ import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import FeedbackModal from "@/components/feedback-modal";
+import {
+  getProofStatusClass,
+  proofStatusOptions,
+} from "@/lib/work-order-status";
 
 // Types
 type WorkOrder = {
@@ -25,6 +29,7 @@ type WorkOrder = {
   payment_status: string | null;
   notification_status: string | null;
   pickup_delivery_status: string | null;
+  proof_status: string | null;
   assigned_user_id: string | null;
   profiles: {
     full_name: string | null;
@@ -326,6 +331,7 @@ export default function WorkOrderDetailsPage() {
           payment_status,
           notification_status,
           pickup_delivery_status,
+          proof_status,
           assigned_user_id,
           profiles:assigned_user_id (
             full_name
@@ -406,6 +412,7 @@ export default function WorkOrderDetailsPage() {
         payment_status: workOrder.payment_status || "Not Checked",
         notification_status: workOrder.notification_status || "Not Notified",
         pickup_delivery_status: workOrder.pickup_delivery_status || "Not Ready",
+        proof_status: workOrder.proof_status || "Not Required",
       })
       .eq("id", workOrder.id)
       .select("id")
@@ -663,6 +670,27 @@ export default function WorkOrderDetailsPage() {
 
                   <div>
                     <label className="block text-sm font-medium mb-1 text-slate-700">
+                      Proof Status
+                    </label>
+
+                    <select
+                      className="app-input py-2"
+                      value={workOrder.proof_status || "Not Required"}
+                      onChange={(e) =>
+                        setWorkOrder({
+                          ...workOrder,
+                          proof_status: e.target.value,
+                        })
+                      }
+                    >
+                      {proofStatusOptions.map((option) => (
+                        <option key={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-slate-700">
                       Project Type
                     </label>
 
@@ -859,7 +887,7 @@ export default function WorkOrderDetailsPage() {
                       Status
                     </p>
                     <p
-                      className={`inline-block mt-1 px-3 py-1 rounded-full text-sm font-semibold ${getStatusClass(
+                      className={`app-badge mt-1 px-3 py-1 text-sm font-semibold ${getStatusClass(
                         workOrder.status
                       )}`}
                     >
@@ -872,7 +900,7 @@ export default function WorkOrderDetailsPage() {
                       Payment
                     </p>
                     <p
-                      className={`inline-block mt-1 px-3 py-1 rounded-full text-sm font-semibold ${getPaymentStatusClass(
+                      className={`app-badge mt-1 px-3 py-1 text-sm font-semibold ${getPaymentStatusClass(
                         workOrder.payment_status
                       )}`}
                     >
@@ -885,7 +913,7 @@ export default function WorkOrderDetailsPage() {
                       Customer
                     </p>
                     <p
-                      className={`inline-block mt-1 px-3 py-1 rounded-full text-sm font-semibold ${getNotificationStatusClass(
+                      className={`app-badge mt-1 px-3 py-1 text-sm font-semibold ${getNotificationStatusClass(
                         workOrder.notification_status
                       )}`}
                     >
@@ -898,11 +926,24 @@ export default function WorkOrderDetailsPage() {
                       Pickup
                     </p>
                     <p
-                      className={`inline-block mt-1 px-3 py-1 rounded-full text-sm font-semibold ${getPickupDeliveryStatusClass(
+                      className={`app-badge mt-1 px-3 py-1 text-sm font-semibold ${getPickupDeliveryStatusClass(
                         workOrder.pickup_delivery_status
                       )}`}
                     >
                       {workOrder.pickup_delivery_status || "Not Ready"}
+                    </p>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-semibold uppercase text-slate-500">
+                      Proof
+                    </p>
+                    <p
+                      className={`app-badge mt-1 px-3 py-1 text-sm font-semibold ${getProofStatusClass(
+                        workOrder.proof_status
+                      )}`}
+                    >
+                      {workOrder.proof_status || "Not Required"}
                     </p>
                   </div>
                     </div>

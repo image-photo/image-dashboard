@@ -30,6 +30,7 @@ import {
   Plus,
   Users,
 } from "lucide-react";
+import { getProofStatusClass } from "@/lib/work-order-status";
 
 // Types
 type Job = {
@@ -37,6 +38,7 @@ type Job = {
   due_date: string | null;
   project_type: string | null;
   status: string | null;
+  proof_status: string | null;
   assigned_user_id: string | null;
   customers: {
     first_name: string | null;
@@ -84,6 +86,7 @@ export default function HomePage() {
           due_date,
           project_type,
           status,
+          proof_status,
           assigned_user_id,
           customers (
             first_name,
@@ -397,7 +400,7 @@ export default function HomePage() {
                 <Link
                   key={job.id}
                   href={`/work-orders/${job.id}`}
-                  className="grid grid-cols-1 md:grid-cols-[120px_1fr_120px] gap-2 md:gap-4 p-4 hover:bg-blue-50 transition-colors"
+                  className="grid grid-cols-1 md:grid-cols-[120px_1fr_180px] gap-2 md:gap-4 p-4 hover:bg-blue-50 transition-colors"
                 >
                   <p className="text-sm font-semibold text-blue-700">
                     WO-{String(job.id).padStart(6, "0")}
@@ -417,12 +420,21 @@ export default function HomePage() {
                       {formatDate(job.due_date)}
                     </p>
                     <span
-                      className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-semibold ${getStatusClass(
+                      className={`app-badge mt-1 px-3 py-1 text-xs font-semibold ${getStatusClass(
                         job.status
                       )}`}
                     >
                       {job.status || "Open"}
                     </span>
+                    {job.proof_status && job.proof_status !== "Not Required" && (
+                      <span
+                        className={`app-badge mt-1 px-3 py-1 text-xs font-semibold md:ml-auto ${getProofStatusClass(
+                          job.proof_status
+                        )}`}
+                      >
+                        Proof: {job.proof_status}
+                      </span>
+                    )}
                   </div>
                 </Link>
               ))}

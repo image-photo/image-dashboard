@@ -254,6 +254,7 @@ export type Database = {
           notification_status: string
           payment_status: string
           pickup_delivery_status: string
+          proof_status: string
           project_options: string[]
           project_type: string
           status: string
@@ -272,6 +273,7 @@ export type Database = {
           notification_status?: string
           payment_status?: string
           pickup_delivery_status?: string
+          proof_status?: string
           project_options?: string[]
           project_type: string
           status?: string
@@ -290,6 +292,7 @@ export type Database = {
           notification_status?: string
           payment_status?: string
           pickup_delivery_status?: string
+          proof_status?: string
           project_options?: string[]
           project_type?: string
           status?: string
@@ -346,6 +349,7 @@ export type Database = {
           p_payment_status?: string
           p_phone: string
           p_pickup_delivery_status?: string
+          p_proof_status?: string
           p_project_options?: string[]
           p_project_type: string
           p_state?: string

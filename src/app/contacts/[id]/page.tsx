@@ -415,12 +415,12 @@ export default function ContactDetailsPage() {
               </p>
 
               <div className="flex flex-wrap gap-2 mt-4">
-                <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-sm font-semibold">
+                <span className="app-badge bg-slate-100 text-slate-700 px-3 py-1 text-sm font-semibold">
                   {contact.type || "No type"}
                 </span>
 
                 <span
-                  className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusClass(
+                  className={`app-badge px-3 py-1 text-sm font-semibold ${getStatusClass(
                     contact.status
                   )}`}
                 >

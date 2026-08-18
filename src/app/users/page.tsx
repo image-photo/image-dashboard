@@ -328,7 +328,7 @@ export default function UsersPage() {
                             aria-label={`Name for ${user.email}`}
                           />
                           {user.isCurrentUser && (
-                            <span className="ml-2 rounded-full bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-700">
+                            <span className="app-badge ml-2 bg-blue-100 px-2 py-1 text-xs font-semibold text-blue-700">
                               You
                             </span>
                           )}

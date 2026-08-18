@@ -17,6 +17,7 @@ import {
   getLocalDateString,
   getLocalDateStringDaysFromNow,
 } from "@/lib/dates";
+import { getProofStatusClass } from "@/lib/work-order-status";
 
 // Types
 type WorkOrder = {
@@ -28,6 +29,7 @@ type WorkOrder = {
   payment_status: string | null;
   notification_status: string | null;
   pickup_delivery_status: string | null;
+  proof_status: string | null;
   assigned_user_id: string | null;
   profiles: {
     full_name: string | null;
@@ -91,6 +93,7 @@ function WorkOrdersContent() {
           payment_status,
           notification_status,
           pickup_delivery_status,
+          proof_status,
           assigned_user_id,
           profiles:assigned_user_id (
             full_name
@@ -149,6 +152,7 @@ function WorkOrdersContent() {
     const pickupDeliveryStatus = (
       order.pickup_delivery_status || ""
     ).toLowerCase();
+    const proofStatus = (order.proof_status || "").toLowerCase();
     const options = (order.project_options || []).join(" ").toLowerCase();
 
     const searchMatch =
@@ -161,6 +165,7 @@ function WorkOrdersContent() {
       paymentStatus.includes(search) ||
       notificationStatus.includes(search) ||
       pickupDeliveryStatus.includes(search) ||
+      proofStatus.includes(search) ||
       options.includes(search);
 
     return statusMatch && dueDateMatch && searchMatch;
@@ -397,20 +402,20 @@ function WorkOrdersContent() {
                   </td>
 
                   <td className="p-4">
-                    <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-sm">
+                    <span className="app-badge bg-slate-100 text-slate-700 px-3 py-1 text-sm">
                       {order.project_type || "No Type"}
                     </span>
                   </td>
 
                   <td className="p-4">
-                    <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-sm">
+                    <span className="app-badge bg-slate-100 text-slate-700 px-3 py-1 text-sm">
                       {order.profiles?.full_name || "Unassigned"}
                     </span>
                   </td>
 
                   <td className="p-4">
                     <span
-                      className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusClass(
+                      className={`app-badge px-3 py-1 text-sm font-semibold ${getStatusClass(
                         order.status
                       )}`}
                     >
@@ -421,7 +426,7 @@ function WorkOrdersContent() {
                   <td className="p-4 min-w-52">
                     <div className="flex flex-wrap gap-2">
                       <span
-                        className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getPaymentStatusClass(
+                        className={`app-badge px-2.5 py-1 text-xs font-semibold ${getPaymentStatusClass(
                           order.payment_status
                         )}`}
                       >
@@ -429,7 +434,7 @@ function WorkOrdersContent() {
                       </span>
 
                       <span
-                        className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getNotificationStatusClass(
+                        className={`app-badge px-2.5 py-1 text-xs font-semibold ${getNotificationStatusClass(
                           order.notification_status
                         )}`}
                       >
@@ -437,11 +442,19 @@ function WorkOrdersContent() {
                       </span>
 
                       <span
-                        className={`px-2.5 py-1 rounded-full text-xs font-semibold ${getPickupDeliveryStatusClass(
+                        className={`app-badge px-2.5 py-1 text-xs font-semibold ${getPickupDeliveryStatusClass(
                           order.pickup_delivery_status
                         )}`}
                       >
                         Pickup: {order.pickup_delivery_status || "Not Ready"}
+                      </span>
+
+                      <span
+                        className={`app-badge px-2.5 py-1 text-xs font-semibold ${getProofStatusClass(
+                          order.proof_status
+                        )}`}
+                      >
+                        Proof: {order.proof_status || "Not Required"}
                       </span>
                     </div>
                   </td>
