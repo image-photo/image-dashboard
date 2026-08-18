@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import FeedbackModal from "@/components/feedback-modal";
 import { getSearchTerms, sanitizeSearchTerm } from "@/lib/search";
+import { proofStatusOptions } from "@/lib/work-order-status";
 
 // Types
 type Customer = {
@@ -130,6 +131,7 @@ export default function NewWorkOrderPage() {
   const [paymentStatus, setPaymentStatus] = useState("Not Checked");
   const [notificationStatus, setNotificationStatus] = useState("Not Notified");
   const [pickupDeliveryStatus, setPickupDeliveryStatus] = useState("Not Ready");
+  const [proofStatus, setProofStatus] = useState("Not Required");
   const [projectOptions, setProjectOptions] = useState<string[]>([]);
   const [description, setDescription] = useState("");
 
@@ -446,6 +448,7 @@ export default function NewWorkOrderPage() {
           p_payment_status: paymentStatus,
           p_notification_status: notificationStatus,
           p_pickup_delivery_status: pickupDeliveryStatus,
+          p_proof_status: proofStatus,
         })
         .single();
 
@@ -484,6 +487,7 @@ export default function NewWorkOrderPage() {
             payment_status: paymentStatus,
             notification_status: notificationStatus,
             pickup_delivery_status: pickupDeliveryStatus,
+            proof_status: proofStatus,
           },
         ])
         .select(
@@ -549,6 +553,7 @@ export default function NewWorkOrderPage() {
     setPaymentStatus("Not Checked");
     setNotificationStatus("Not Notified");
     setPickupDeliveryStatus("Not Ready");
+    setProofStatus("Not Required");
     setAssignedUserId("");
     setProjectOptions([]);
     setDescription("");
@@ -1054,6 +1059,22 @@ export default function NewWorkOrderPage() {
                   onChange={(e) => setPickupDeliveryStatus(e.target.value)}
                 >
                   {pickupDeliveryStatusOptions.map((option) => (
+                    <option key={option}>{option}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1 text-slate-700">
+                  Proof Status
+                </label>
+
+                <select
+                  className="border p-2 rounded text-slate-900 w-full"
+                  value={proofStatus}
+                  onChange={(e) => setProofStatus(e.target.value)}
+                >
+                  {proofStatusOptions.map((option) => (
                     <option key={option}>{option}</option>
                   ))}
                 </select>

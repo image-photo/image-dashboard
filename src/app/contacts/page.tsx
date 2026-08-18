@@ -201,14 +201,14 @@ export default function ContactsPage() {
                   </td>
 
                   <td className="p-4">
-                    <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-sm">
+                    <span className="app-badge bg-slate-100 text-slate-700 px-3 py-1 text-sm">
                       {contact.type || "No type"}
                     </span>
                   </td>
 
                   <td className="p-4">
                     <span
-                      className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusClass(
+                      className={`app-badge px-3 py-1 text-sm font-semibold ${getStatusClass(
                         contact.status
                       )}`}
                     >

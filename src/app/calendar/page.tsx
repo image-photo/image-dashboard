@@ -210,16 +210,16 @@ export default function CalendarPage() {
             </div>
 
             <div className="flex flex-wrap gap-2 text-xs">
-              <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full font-semibold">
+              <span className="app-badge bg-red-100 text-red-700 px-3 py-1 font-semibold">
                 Overdue
               </span>
-              <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full font-semibold">
+              <span className="app-badge bg-green-100 text-green-700 px-3 py-1 font-semibold">
                 Open
               </span>
-              <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full font-semibold">
+              <span className="app-badge bg-blue-100 text-blue-700 px-3 py-1 font-semibold">
                 In Progress
               </span>
-              <span className="bg-slate-200 text-slate-700 px-3 py-1 rounded-full font-semibold">
+              <span className="app-badge bg-slate-200 text-slate-700 px-3 py-1 font-semibold">
                 Done
               </span>
             </div>

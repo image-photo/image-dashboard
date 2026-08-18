@@ -16,6 +16,7 @@ import Link from "next/link";
 import FeedbackModal from "@/components/feedback-modal";
 import TablePagination from "@/components/table-pagination";
 import { Trash2 } from "lucide-react";
+import { getProofStatusClass } from "@/lib/work-order-status";
 
 // Types
 type Customer = {
@@ -38,6 +39,7 @@ type WorkOrder = {
   payment_status: string | null;
   notification_status: string | null;
   pickup_delivery_status: string | null;
+  proof_status: string | null;
   description: string | null;
 };
 
@@ -254,7 +256,7 @@ export default function CustomerDetailsPage() {
       const { data, error } = await supabase
         .from("work_orders")
         .select(
-          "id, due_date, project_type, status, payment_status, notification_status, pickup_delivery_status, description"
+          "id, due_date, project_type, status, payment_status, notification_status, pickup_delivery_status, proof_status, description"
         )
         .eq("customer_id", customerId)
         .order("id", { ascending: false });
@@ -722,7 +724,7 @@ export default function CustomerDetailsPage() {
 
                 <div className="flex flex-wrap gap-2">
                   <span
-                    className={`text-xs px-2.5 py-1 rounded-full font-semibold w-fit ${getStatusClass(
+                    className={`app-badge text-xs px-2.5 py-1 font-semibold ${getStatusClass(
                       job.status
                     )}`}
                   >
@@ -730,7 +732,7 @@ export default function CustomerDetailsPage() {
                   </span>
 
                   <span
-                    className={`text-xs px-2.5 py-1 rounded-full font-semibold w-fit ${getPaymentStatusClass(
+                    className={`app-badge text-xs px-2.5 py-1 font-semibold ${getPaymentStatusClass(
                       job.payment_status
                     )}`}
                   >
@@ -738,7 +740,7 @@ export default function CustomerDetailsPage() {
                   </span>
 
                   <span
-                    className={`text-xs px-2.5 py-1 rounded-full font-semibold w-fit ${getNotificationStatusClass(
+                    className={`app-badge text-xs px-2.5 py-1 font-semibold ${getNotificationStatusClass(
                       job.notification_status
                     )}`}
                   >
@@ -746,11 +748,19 @@ export default function CustomerDetailsPage() {
                   </span>
 
                   <span
-                    className={`text-xs px-2.5 py-1 rounded-full font-semibold w-fit ${getPickupDeliveryStatusClass(
+                    className={`app-badge text-xs px-2.5 py-1 font-semibold ${getPickupDeliveryStatusClass(
                       job.pickup_delivery_status
                     )}`}
                   >
                     Pickup: {job.pickup_delivery_status || "Not Ready"}
+                  </span>
+
+                  <span
+                    className={`app-badge text-xs px-2.5 py-1 font-semibold ${getProofStatusClass(
+                      job.proof_status
+                    )}`}
+                  >
+                    Proof: {job.proof_status || "Not Required"}
                   </span>
                 </div>
               </Link>

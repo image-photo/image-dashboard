@@ -74,6 +74,10 @@ body {
     @apply w-full rounded-xl border border-slate-300 bg-white p-3 text-slate-900;
   }
 
+  .app-badge {
+    @apply inline-flex w-fit items-center whitespace-nowrap rounded-full;
+  }
+
   .app-button-primary {
     @apply inline-flex items-center justify-center gap-2 rounded-xl bg-blue-700 px-4 py-2 font-semibold text-white hover:bg-blue-800;
   }
